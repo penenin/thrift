@@ -105,6 +105,29 @@ include_processor_HEADERS = src/thrift/c_glib/processor/thrift_processor.h \
                             src/thrift/c_glib/processor/thrift_dispatch_processor.h \
                             src/thrift/c_glib/processor/thrift_multiplexed_processor.h
 
+if HAVE_INTROSPECTION
+-include $(INTROSPECTION_MAKEFILE)
+INTROSPECTION_GIRS = Thrift-1.0.gir
+INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --warn-all
+INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+
+Thrift-1.0.gir: libthrift_c_glib.la
+Thrift_1_0_gir_INCLUDES = GObject-2.0
+Thrift_1_0_gir_CFLAGS = $(libthrift_c_glib_la_CFLAGS) $(AM_CPPFLAGS)
+Thrift_1_0_gir_LIBS = libthrift_c_glib.la
+Thrift_1_0_gir_FILES = $(libthrift_c_glib_la_SOURCES) \ 
+                       $(include_thrift_HEADERS) \ 
+                       $(include_protocol_HEADERS) \
+                       $(include_transport_HEADERS) \
+                       $(include_server_HEADERS) \ 
+                       $(include_processor_HEADERS)
+
+girdir = $(datadir)/gir-1.0
+gir_DATA = $(INTROSPECTION_GIRS)
+
+typelibdir = $(libdir)/girepository-1.0
+typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
+endif
 
 EXTRA_DIST = \
              CMakeLists.txt \
@@ -115,4 +138,6 @@ EXTRA_DIST = \
 
 CLEANFILES = \
              *.gcno \
-             *.gcda
+             *.gcda \
+             $(gir_DATA) \
+             $(typelib_DATA)
