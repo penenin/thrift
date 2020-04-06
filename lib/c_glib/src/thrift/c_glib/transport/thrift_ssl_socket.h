@@ -95,7 +95,7 @@ struct _ThriftSSLSocketClass
   gpointer padding[12];
 };
 
-enum _ThriftSSLSocketProtocol {
+typedef enum {
   SSLTLS  = 0,  /* Supports SSLv2 and SSLv3 handshake but only negotiates at TLSv1_0 or later. */
 /*SSLv2   = 1,   HORRIBLY INSECURE! */
   SSLv3   = 2,  /* Supports SSLv3 only - also horribly insecure! */
@@ -103,8 +103,7 @@ enum _ThriftSSLSocketProtocol {
   TLSv1_1 = 4,  /* Supports TLSv1_1 or later. */
   TLSv1_2 = 5,  /* Supports TLSv1_2 or later. */
   LATEST  = TLSv1_2
-};
-typedef enum _ThriftSSLSocketProtocol ThriftSSLSocketProtocol;
+} ThriftSSLSocketProtocol;
 
 
 /* Internal functions */
