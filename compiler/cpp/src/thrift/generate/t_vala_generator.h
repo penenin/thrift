@@ -91,7 +91,7 @@ public:
   void generate_service_helpers(ostream& out, t_service* tservice);
   void generate_service_client(ostream& out, t_service* tservice);
   void generate_service_server(ostream& out, t_service* tservice);
-  void generate_process_function_async(ostream& out, t_service* tservice, t_function* function);
+  void generate_process_function(ostream& out, t_service* tservice, t_function* function);
   void generate_deserialize_field(ostream& out, t_field* tfield, string prefix = "", bool is_propertyless = false);
   void generate_deserialize_struct(ostream& out, t_struct* tstruct, string prefix = "");
   void generate_deserialize_container(ostream& out, t_type* ttype, string prefix = "");
@@ -119,8 +119,8 @@ public:
   string base_type_name(t_base_type* tbase);
   string declare_field(t_field* tfield, bool init = false, string prefix = "");
   string function_signature_async(t_function* tfunction, string prefix = "");
-  string function_signature(t_function* tfunction, string prefix = "");
-  string argument_list(t_struct* tstruct);
+  string function_signature(t_function* tfunction, string prefix = "", bool is_abstract = false);
+  string argument_list(t_struct* tstruct, t_struct* xs);
   string type_to_enum(t_type* ttype);
   string prop_name(t_field* tfield, bool suppress_mapping = false);
   string convert_to_pascal_case(const string& str);
@@ -131,7 +131,7 @@ private:
   string namespace_dir_;
 
   bool nullable_;
-  bool hashcode_;
+  bool use_libgee;
   bool use_pascal_case_properties;
 
   map<string, int> vala_keywords;

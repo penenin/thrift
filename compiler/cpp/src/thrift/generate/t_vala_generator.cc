@@ -48,13 +48,18 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
     : t_oop_generator(program)
 {
     (void)option_string;
+    use_libgee = false;
     use_pascal_case_properties = false;
 
     map<string, string>::const_iterator iter;
 
     for (iter = parsed_options.begin(); iter != parsed_options.end(); ++iter)
     {
-        if (iter->first.compare("pascal") == 0)
+        if (iter->first.compare("libgee") == 0)
+        {
+          use_libgee = true;
+        }
+        else if (iter->first.compare("pascal") == 0)
         {
           use_pascal_case_properties = true;
         }
@@ -67,44 +72,51 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
     out_dir_base_ = "gen-vala";
 }
 
-static string correct_function_name_for_async(string const& function_name)
+static string to_pascal_case(const string& identifier)
 {
-    string const async_end = "Async";
-    size_t i = function_name.find(async_end);
-    if (i != string::npos)
+    string out;
+    bool must_capitalize = true;
+    for (auto it = identifier.begin(); it != identifier.end(); ++it) 
     {
-        return function_name + async_end;
+        if (std::isalnum(*it)) 
+        {
+            if (must_capitalize) 
+            {
+                out.append(1, (char)::toupper(*it));
+                must_capitalize = false;
+            } 
+            else 
+            {
+                out.append(1, *it);
+            }
+        } 
+        else if(*it == '_')
+        {
+            must_capitalize = true;
+        }
     }
-
-    return function_name;
+    return out;
 }
 
-/**
-* \brief Search and replace "_args" substring in struct name if exist (for Vala class naming)
-* \param struct_name
-* \return Modified struct name ("Struct_args" -> "StructArgs") or original name
-*/
-static string check_and_correct_struct_name(const string& struct_name)
+static string to_snake_case(const string& identifier)
 {
-    string args_end = "_args";
-    size_t i = struct_name.find(args_end);
-    if (i != string::npos)
+    string out;
+    for (auto it = identifier.begin(); it != identifier.end(); ++it) 
     {
-        string new_struct_name = struct_name;
-        new_struct_name.replace(i, args_end.length(), "Args");
-        return new_struct_name;
+        if (std::isupper(*it))
+        {
+            if (it != identifier.begin()) 
+            {
+                out.append(1, '_');
+            }
+            out.append(1, (char)::tolower(*it));
+        }
+        else
+        {
+            out.append(1, *it);
+        }
     }
-
-    string result_end = "_result";
-    size_t j = struct_name.find(result_end);
-    if (j != string::npos)
-    {
-        string new_struct_name = struct_name;
-        new_struct_name.replace(j, result_end.length(), "Result");
-        return new_struct_name;
-    }
-
-    return struct_name;
+    return out;
 }
 
 static bool field_has_default(t_field* tfield) { return tfield->get_value() != NULL; }
@@ -119,6 +131,113 @@ static bool type_can_be_null(t_type* ttype)
     }
 
     return ttype->is_container() || ttype->is_struct() || ttype->is_xception() || ttype->is_string();
+}
+
+static string generate_hash_func_from_type(t_type* ttype)
+{
+    if (ttype == nullptr)
+    {
+        return "NULL";
+    }
+
+    if (ttype->is_base_type())
+    {
+        t_base_type::t_base tbase = static_cast<t_base_type*>(ttype)->get_base();
+        switch (tbase)
+        {
+        case t_base_type::TYPE_VOID:
+            throw "compiler error: cannot determine hash type";
+            break;
+        case t_base_type::TYPE_BOOL:
+            return "boolean_hash";
+        case t_base_type::TYPE_I8:
+            return "int8_hash";
+        case t_base_type::TYPE_I16:
+            return "int16_hash";
+        case t_base_type::TYPE_I32:
+            return "int_hash";
+        case t_base_type::TYPE_I64:
+            return "int64_hash";
+        case t_base_type::TYPE_DOUBLE:
+            return "double_hash";
+        case t_base_type::TYPE_STRING:
+            return "str_hash";
+        default:
+            throw "compiler error: no hash table info for type";
+        }
+    }
+    else if (ttype->is_enum() || ttype->is_enum() || ttype->is_struct())
+    {
+        return "direct_hash";
+    }
+    else if (ttype->is_typedef())
+    {
+        return generate_hash_func_from_type((static_cast<t_typedef*>(ttype))->get_type());
+    }
+
+    printf("Type not expected: %s\n", ttype->get_name().c_str());
+    throw "Type not expected";
+}
+
+static string generate_cmp_func_from_type(t_type* ttype)
+{
+    if (ttype == nullptr)
+    {
+        return "NULL";
+    }
+
+    if (ttype->is_base_type())
+    {
+        t_base_type::t_base tbase = static_cast<t_base_type*>(ttype)->get_base();
+        switch (tbase)
+        {
+        case t_base_type::TYPE_VOID:
+            throw "compiler error: cannot determine hash type";
+            break;
+        case t_base_type::TYPE_BOOL:
+            return "boolean_equal";
+        case t_base_type::TYPE_I8:
+            return "int8_equal";
+        case t_base_type::TYPE_I16:
+            return "int16_equal";
+        case t_base_type::TYPE_I32:
+            return "int_equal";
+        case t_base_type::TYPE_I64:
+            return "int64_equal";
+        case t_base_type::TYPE_DOUBLE:
+            return "double_equal";
+        case t_base_type::TYPE_STRING:
+            return "str_equal";
+        default:
+            throw "compiler error: no hash table info for type";
+        }
+    }
+    else if (ttype->is_enum() || ttype->is_enum() || ttype->is_struct())
+    {
+        return "direct_equal";
+    }
+    else if (ttype->is_typedef())
+    {
+        return generate_cmp_func_from_type((static_cast<t_typedef*>(ttype))->get_type());
+    }
+
+    printf("Type not expected: %s\n", ttype->get_name().c_str());
+    throw "Type not expected";
+}
+
+static string generate_hash_functions(t_map* tmap)
+{
+    return generate_hash_func_from_type(tmap->get_key_type()) + ", " + generate_cmp_func_from_type(tmap->get_val_type());
+}
+
+static bool is_numeric(t_type* ttype) 
+{
+  return ttype->is_enum() || (ttype->is_base_type() && !ttype->is_string());
+}
+
+static string get_glib_array_type(t_type* ttype)
+{
+    return is_numeric(ttype) ? "Array" : "GenericArray";
 }
 
 map<string, int> t_vala_generator::get_keywords_list() const
@@ -162,6 +281,7 @@ void t_vala_generator::init_generator()
     }
 
     pverbose("Vala options:\n");
+    pverbose("- libgee ..... %s\n", (use_libgee ? "ON" : "off"));
     pverbose("- pascal ..... %s\n", (use_pascal_case_properties ? "ON" : "off"));
 }
 
@@ -275,17 +395,19 @@ void t_vala_generator::end_vala_namespace(ostream& out)
 
 string t_vala_generator::vala_type_usings() const
 {
-    string namespaces =
-        "using Gee;\n";
-
-    return namespaces + endl;
+    if (use_libgee)
+    {
+        string namespaces = "using Gee;\n";
+        return namespaces + endl;
+    }
+        
+    return "";
 }
 
 string t_vala_generator::vala_thrift_usings() const
 {
     string namespaces =
-        "using Thrift;\n"
-        "using Thrift.Collections;\n";;
+        "using Thrift;\n";
 
     return namespaces + endl;
 }
@@ -344,7 +466,9 @@ void t_vala_generator::generate_consts(vector<t_const*> consts)
         return;
     }
 
-    string f_consts_name = namespace_dir_ + '/' + program_name_ + ".Constants.vala";
+    string filename = program_name_ + ".Constants.vala";
+    transform(filename.begin(), filename.begin() + 1, filename.begin(), static_cast<int(*)(int)>(toupper));
+    string f_consts_name = namespace_dir_ + '/' + filename;
     ofstream_with_content_based_conditional_update f_consts;
     f_consts.open(f_consts_name.c_str());
 
@@ -364,7 +488,7 @@ void t_vala_generator::generate_consts(ostream& out, vector<t_const*> consts)
 
     start_vala_namespace(out);
 
-    out << indent() << "public static class " << make_valid_vala_identifier(program_name_) << "Constants" << endl;
+    out << indent() << "public class " << make_valid_vala_identifier(program_name_) << "Constants" << endl;
 
     scope_up(out);
 
@@ -453,14 +577,14 @@ void t_vala_generator::print_const_def_value(ostream& out, string name, t_type* 
         for (v_iter = val.begin(); v_iter != val.end(); ++v_iter)
         {
             string val = render_const_value(out, name, etype, *v_iter);
-            out << indent() << name << ".Add(" << val << ");" << endl;
+            out << indent() << name << ".add(" << val << ");" << endl;
         }
     }
 }
 
 void t_vala_generator::print_const_constructor(ostream& out, vector<t_const*> consts)
 {
-    out << indent() << "static " << make_valid_vala_identifier(program_name_).c_str() << "Constants()" << endl;
+    out << indent() << "static construct" << endl;
     scope_up(out);
 
     vector<t_const*>::iterator c_iter;
@@ -506,7 +630,9 @@ bool t_vala_generator::print_const_value(ostream& out, string name, t_type* type
     }
     else if (type->is_map())
     {
-        out << name << " = new " << type_name(type) << "();" << endl;
+        out << name << " = new " << type_name(type) << "("
+            << (use_libgee ? "" : generate_hash_functions(static_cast<t_map*>(type)))
+            << ");" << endl;
     }
     else if (type->is_list() || type->is_set())
     {
@@ -608,21 +734,16 @@ void t_vala_generator::generate_vala_struct_definition(ostream& out, t_struct* t
 
     out << endl;
 
+    string vala_struct_name = to_pascal_case(normalize_name(tstruct->get_name()));
+
     generate_vala_doc(out, tstruct);
     prepare_member_name_mapping(tstruct);
 
     bool is_final = tstruct->annotations_.find("final") != tstruct->annotations_.end();
+    string base_type = is_exception ? "ApplicationException" : "Struct";
 
-    string sharp_struct_name = check_and_correct_struct_name(normalize_name(tstruct->get_name()));
-
-    out << indent() << "public " << (is_final ? "sealed " : "") << sharp_struct_name << " : ";
-
-    if (is_exception)
-    {
-        out << " : " << "ApplicationException, ";
-    }
-
-    out << indent() << "{" << endl;
+    out << indent() << "public class " << (is_final ? "sealed " : "") << vala_struct_name << " : " << base_type << endl
+        << indent() << "{" << endl;
     indent_up();
 
     const vector<t_field*>& members = tstruct->get_members();
@@ -682,7 +803,7 @@ void t_vala_generator::generate_vala_struct_definition(ostream& out, t_struct* t
     }
 
     // We always want a default, no argument constructor for Reading
-    out << indent() << "public " << sharp_struct_name << "()" << endl
+    out << indent() << "public " << vala_struct_name << "()" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -712,7 +833,7 @@ void t_vala_generator::generate_vala_struct_definition(ostream& out, t_struct* t
 
     if (has_required_fields)
     {
-        out << indent() << "public " << sharp_struct_name << "(";
+        out << indent() << "public " << vala_struct_name << "(";
         bool first = true;
         for (m_iter = members.begin(); m_iter != members.end(); ++m_iter)
         {
@@ -767,7 +888,7 @@ void t_vala_generator::generate_vala_struct_definition(ostream& out, t_struct* t
 
 void t_vala_generator::generate_vala_struct_reader(ostream& out, t_struct* tstruct)
 {
-    out << indent() << "public void read(Protocol protocol)" << endl
+    out << indent() << "public override int32 read(Protocol protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -784,15 +905,15 @@ void t_vala_generator::generate_vala_struct_reader(ostream& out, t_struct* tstru
     }
 
     out << indent() << "string struct_name;" << endl
-        << indent() << "protocol.read_struct_begin(struct_name);" << endl
+        << indent() << "protocol.read_struct_begin(out struct_name);" << endl
         << indent() << "while (true)" << endl
         << indent() << "{" << endl;
     indent_up();
     out << indent() << "string field_name;" << endl
-        << indent() << "Type field_type;" << endl
-        << indent() << "int16 field_id" << endl
-        << indent() << "protocol.read_field_begin(field_name, field_type, field_id);" << endl
-        << indent() << "if (field_type == Type.STOP)" << endl
+        << indent() << "Thrift.Type field_type;" << endl
+        << indent() << "int16 field_id;" << endl
+        << indent() << "protocol.read_field_begin(out field_name, out field_type, out field_id);" << endl
+        << indent() << "if (field_type == Thrift.Type.STOP)" << endl
         << indent() << "{" << endl;
     indent_up();
     out << indent() << "break;" << endl;
@@ -856,13 +977,15 @@ void t_vala_generator::generate_vala_struct_reader(ostream& out, t_struct* tstru
         }
     }
 
+    out << endl
+        << indent() << "return 1;" << endl;
     indent_down();
     out << indent() << "}" << endl << endl;
 }
 
 void t_vala_generator::generate_vala_struct_writer(ostream& out, t_struct* tstruct)
 {
-    out << indent() << "public void write(Protocol protocol)" << endl
+    out << indent() << "public override int32 write(Protocol protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -908,14 +1031,15 @@ void t_vala_generator::generate_vala_struct_writer(ostream& out, t_struct* tstru
     }
 
     out << indent() << "protocol.write_field_stop();" << endl
-        << indent() << "protocol.write_struct_end();" << endl;
+        << indent() << "protocol.write_struct_end();" << endl
+        << indent() << "return 1;" << endl;
     indent_down();
     out << indent() << "}" << endl << endl;
 }
 
 void t_vala_generator::generate_vala_struct_result_writer(ostream& out, t_struct* tstruct)
 {
-    out << indent() << "public void write(Protocol protocol)" << endl
+    out << indent() << "public override int32 write(Protocol protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -971,7 +1095,8 @@ void t_vala_generator::generate_vala_struct_result_writer(ostream& out, t_struct
     }
 
     out << indent() << "protocol.write_field_stop();" << endl
-        << indent() << "protocol.write_struct_end();" << endl;
+        << indent() << "protocol.write_struct_end();" << endl
+        << indent() << "return 1;" << endl;
     indent_down();
     out << indent() << "}" << endl << endl;
 }
@@ -988,7 +1113,10 @@ void t_vala_generator::generate_service(t_service* tservice)
 
     start_vala_namespace(f_service);
 
-    f_service << indent() << "public class " << normalize_name(service_name_) << endl
+    generate_service_interface(f_service, tservice);
+    f_service << endl;
+
+    f_service << indent() << "public class " << normalize_name(service_name_) << " : Object" << endl
               << indent() << "{" << endl;
     indent_up();
 
@@ -1014,10 +1142,15 @@ void t_vala_generator::generate_service_interface(ostream& out, t_service* tserv
         extends = type_name(tservice->get_extends());
         extends_iface = " : " + extends;
     }
+    else
+    {
+        extends_iface = " : Object";
+    }
+    
 
     generate_vala_doc(out, tservice);
 
-    out << indent() << "public interface" << extends_iface << endl
+    out << indent() << "public interface I" << to_pascal_case(tservice->get_name()) << extends_iface << endl
         << indent() << "{" << endl;
 
     indent_up();
@@ -1027,7 +1160,7 @@ void t_vala_generator::generate_service_interface(ostream& out, t_service* tserv
     {
         generate_vala_doc(out, *f_iter);
 
-        out << indent() << function_signature_async(*f_iter) << ";" << endl << endl;
+        out << indent() << function_signature(*f_iter, "", true) << ";" << endl << endl;
     }
     indent_down();
     out << indent() << "}" << endl << endl;
@@ -1053,11 +1186,11 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
     if (tservice->get_extends() != NULL)
     {
         extends = type_name(tservice->get_extends());
-        extends_client = " : " +extends + ".Client, ";
+        extends_client = " : " + extends + ".Client";
     }
     else
     {
-        extends_client = "";
+        extends_client = " : I" + to_pascal_case(tservice->get_name()) + ", Object";
     }
 
     out << endl;
@@ -1067,6 +1200,13 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
     out << indent() << "public class Client" << extends_client << endl
         << indent() << "{" << endl;
     indent_up();
+
+    if (tservice->get_extends() == NULL)
+    {
+        out << indent() << "protected Protocol input_protocol;" << endl
+            << indent() << "protected Protocol output_protocol;" << endl
+            << endl;
+    }
 
     out << indent() << "public Client(Protocol protocol)" << endl
         << indent() << "{" << endl;
@@ -1081,10 +1221,20 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
         << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "base(protocol, protocol);" << endl;
+    if (tservice->get_extends() != NULL)
+    {
+        out << indent() << "base.with_protocols(input_protocol, output_protocol);" << endl;
+    }
+    else
+    {
+        out << indent() << "this.input_protocol = input_protocol;" << endl;
+        out << indent() << "this.output_protocol = output_protocol;" << endl;
+    }
+    
     indent_down();
 
-    out << indent() << "}" << endl;
+    out << indent() << "}" << endl
+        << endl;
 
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::const_iterator functions_iterator;
@@ -1092,17 +1242,15 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
     for (functions_iterator = functions.begin(); functions_iterator != functions.end(); ++functions_iterator)
     {
         string function_name = (*functions_iterator)->get_name();
-        //string function_name = correct_function_name_for_async((*functions_iterator)->get_name());
 
-        // async
-        //out << indent() << "public async " << function_signature_async(*functions_iterator, "") << endl
-        out << indent() << "public " << *functions_iterator << endl
+        out << indent() << "public " << function_signature(*functions_iterator, "") << endl
             << indent() << "{" << endl;
         indent_up();
 
-        string argsname = (*functions_iterator)->get_name() + "Args";
+        string argsname = to_pascal_case((*functions_iterator)->get_name() + "Args");
 
-        out << indent() << "output_protocol.write_message_begin(\"" << function_name
+        out << indent() << "int32 seqid = 0;" << endl
+            << indent() << "output_protocol.write_message_begin(\"" << function_name
             << "\", " << ((*functions_iterator)->is_oneway() ? "MessageType.ONEWAY" : "MessageType.CALL") << ", seqid);" << endl
             << indent() << endl
             << indent() << "var args = new " << argsname << "();" << endl;
@@ -1118,13 +1266,13 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
         }
 
         out << indent() << endl
-            << indent() << "args.write(OutputProtocol);" << endl
+            << indent() << "args.write(output_protocol);" << endl
             << indent() << "output_protocol.write_message_end();" << endl
             << indent() << "output_protocol.transport.flush();" << endl;
 
         if (!(*functions_iterator)->is_oneway())
         {
-            string resultname = (*functions_iterator)->get_name() + "Result";
+            string resultname = to_pascal_case((*functions_iterator)->get_name()) + "Result";
             t_struct noargs(program_);
             t_struct* xs = (*functions_iterator)->get_xceptions();
             prepare_member_name_mapping(xs, xs->get_members(), resultname);
@@ -1132,22 +1280,40 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
             out << indent() << endl
                 << indent() << "string name;" << endl
                 << indent() << "MessageType message_type;" << endl
-                << indent() << "int32 seqid;" << endl
-                << indent() << "input_protcol.read_message_begin(name, message_type, seqid);" << endl
+                << indent() << "input_protocol.read_message_begin(out name, out message_type, out seqid);" << endl
                 << indent() << "if (message_type == MessageType.EXCEPTION)" << endl
                 << indent() << "{" << endl;
             indent_up();
 
-            out << indent() << "var x = await TApplicationException.ReadAsync(InputProtocol, cancellationToken);" << endl
-                << indent() << "await InputProtocol.ReadMessageEndAsync(cancellationToken);" << endl
-                << indent() << "throw x;" << endl;
+            out << indent() << "var x = new ApplicationException();" << endl
+                << indent() << "x.read(input_protocol);" << endl
+                << indent() << "throw new ApplicationExceptionError.UNKNOWN(x.message);" << endl;
             indent_down();
 
             out << indent() << "}" << endl
                 << endl
                 << indent() << "var result = new " << resultname << "();" << endl
-                << indent() << "await result.ReadAsync(InputProtocol, cancellationToken);" << endl
-                << indent() << "await InputProtocol.ReadMessageEndAsync(cancellationToken);" << endl;
+                << indent() << "result.read(input_protocol);" << endl
+                << indent() << "input_protocol.read_message_end();" << endl;
+
+            const vector<t_field*>& xceptions = xs->get_members();
+            vector<t_field*>::const_iterator x_iter;
+            for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
+            {
+                string name = normalize_name((*x_iter)->get_name());
+                out << indent() << "if (result.__isset." << name << ")" << endl
+                    << indent() << "{" << endl;
+                indent_up();
+                out << indent() << name << " = " << "result." << prop_name(*x_iter) << ";" << endl;
+                indent_down();
+                out << indent() << "}" << endl
+                    << indent() << "else" << endl
+                    << indent() << "{" << endl;
+                indent_up();
+                out << indent() << name << " = " << "null;" << endl;
+                indent_down();
+                out << indent() << "}" << endl;
+            }
 
             if (!(*functions_iterator)->get_returntype()->is_void())
             {
@@ -1158,19 +1324,7 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
                 indent_down();
                 out << indent() << "}" << endl;
             }
-
-            const vector<t_field*>& xceptions = xs->get_members();
-            vector<t_field*>::const_iterator x_iter;
-            for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
-            {
-                out << indent() << "if (result.__isset." << normalize_name((*x_iter)->get_name()) << ")" << endl
-                    << indent() << "{" << endl;
-                indent_up();
-                out << indent() << "throw result." << prop_name(*x_iter) << ";" << endl;
-                indent_down();
-                out << indent() << "}" << endl;
-            }
-
+            
             if ((*functions_iterator)->get_returntype()->is_void())
             {
                 out << indent() << "return;" << endl;
@@ -1201,108 +1355,73 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::iterator f_iter;
 
-    string extends = "";
-    if (tservice->get_extends() != NULL)
-    {
-        extends = type_name(tservice->get_extends());
-    }
-
-    out << indent() << "public class Processor : " << extends << endl
+    out << indent() << "public class Processor : Thrift.Processor" << endl
         << indent() << "{" << endl;
 
     indent_up();
 
-    out << indent() << "private IAsync _iAsync;" << endl
+    string container = use_libgee ? "HashMap" : "HashTable";
+    string interface_name = "I" + to_pascal_case(tservice->get_name());
+    out << indent() << "private " << interface_name << " service;" << endl
         << endl
-        << indent() << "public AsyncProcessor(IAsync iAsync)";
+        << indent() << "private delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
+        << endl
+        << indent() << "private " << container << "<string, void*> process_map = new " << container << "<string, void*>(str_hash, str_equal);" << endl
+        << endl
+        << indent() << "public Processor(" << interface_name << " service)" << endl;
+    indent_up();
+    out << indent() << "requires (service != null)" << endl;
+    indent_down();
 
-    if (!extends.empty())
-    {
-        out << " : base(iAsync)";
-    }
-
-    out << endl
-        << indent() << "{" << endl;
+    out << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "if (iAsync == null) throw new ArgumentNullException(nameof(iAsync));" << endl
-        << endl
-        << indent() << "_iAsync = iAsync;" << endl;
-
+    out << indent() << "this.service = service;" << endl;
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
-    {
+    {    
         string function_name = (*f_iter)->get_name();
-        out << indent() << "processMap_[\"" << correct_function_name_for_async(function_name) << "\"] = " << function_name << "_ProcessAsync;" << endl;
+        out << indent() << "process_map[\"" << function_name << "\"] = (void*)process_" << to_snake_case(function_name) << ";" << endl;
     }
 
     indent_down();
     out << indent() << "}" << endl
-        << endl;
-
-    if (extends.empty())
-    {
-        out << indent() << "protected delegate Task ProcessFunction(int seqid, TProtocol iprot, TProtocol oprot, CancellationToken cancellationToken);" << endl;
-    }
-
-    if (extends.empty())
-    {
-        out << indent() << "protected Dictionary<string, ProcessFunction> processMap_ = new Dictionary<string, ProcessFunction>();" << endl;
-    }
-
-    out << endl;
-
-    if (extends.empty())
-    {
-        out << indent() << "public async Task<bool> ProcessAsync(TProtocol iprot, TProtocol oprot)" << endl
-            << indent() << "{" << endl;
-        indent_up();
-        out << indent() << "return await ProcessAsync(iprot, oprot, CancellationToken.None);" << endl;
-        indent_down();
-        out << indent() << "}" << endl << endl;
-
-        out << indent() << "public async Task<bool> ProcessAsync(TProtocol iprot, TProtocol oprot, CancellationToken cancellationToken)" << endl;
-    }
-    else
-    {
-        out << indent() << "public new async Task<bool> ProcessAsync(TProtocol iprot, TProtocol oprot)" << endl
-            << indent() << "{" << endl;
-        indent_up();
-        out << indent() << "return await ProcessAsync(iprot, oprot, CancellationToken.None);" << endl;
-        indent_down();
-        out << indent() << "}" << endl << endl;
-
-        out << indent() << "public new async Task<bool> ProcessAsync(TProtocol iprot, TProtocol oprot, CancellationToken cancellationToken)" << endl;
-    }
-
-    out << indent() << "{" << endl;
+        << endl
+        << indent() << "public override bool process(Protocol input_protocol, Protocol output_protocol)" << endl
+        << indent() << "{" << endl;
     indent_up();
     out << indent() << "try" << endl
         << indent() << "{" << endl;
     indent_up();
-    out << indent() << "var msg = await iprot.ReadMessageBeginAsync(cancellationToken);" << endl
+    out << indent() << "string name;" << endl
+        << indent() << "MessageType message_type;" << endl
+        << indent() << "int32 seqid;" << endl
+        << indent() << "input_protocol.read_message_begin(out name, out message_type, out seqid);" << endl
         << endl
-        << indent() << "ProcessFunction fn;" << endl
-        << indent() << "processMap_.TryGetValue(msg.Name, out fn);" << endl
+        << indent() << "var fn = process_map.get(name);" << endl
         << endl
         << indent() << "if (fn == null)" << endl
         << indent() << "{" << endl;
     indent_up();
-    out << indent() << "await TProtocolUtil.SkipAsync(iprot, TType.Struct, cancellationToken);" << endl
-        << indent() << "await iprot.ReadMessageEndAsync(cancellationToken);" << endl
-        << indent() << "var x = new TApplicationException (TApplicationException.ExceptionType.UnknownMethod, \"Invalid method name: '\" + msg.Name + \"'\");" << endl
-        << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(msg.Name, TMessageType.Exception, msg.SeqID), cancellationToken);" << endl
-        << indent() << "await x.WriteAsync(oprot, cancellationToken);" << endl
-        << indent() << "await oprot.WriteMessageEndAsync(cancellationToken);" << endl
-        << indent() << "await oprot.Transport.FlushAsync(cancellationToken);" << endl
+    out << indent() << "input_protocol.skip(Thrift.Type.STRUCT);" << endl
+        << indent() << "input_protocol.read_message_end();" << endl
+        << indent() << "var x = new ApplicationException();" << endl
+        << indent() << "x.type = ApplicationExceptionError.UNKNOWN_METHOD;" << endl
+        << indent() << "x.message = \"Invalid method name: '\" + name + \"'\";" << endl
+        << indent() << "output_protocol.write_message_begin(name, MessageType.EXCEPTION, seqid);" << endl
+        << indent() << "x.write(output_protocol);" << endl
+        << indent() << "output_protocol.write_message_end();" << endl
+        << indent() << "output_protocol.transport.flush();" << endl
         << indent() << "return true;" << endl;
     indent_down();
     out << indent() << "}" << endl
         << endl
-        << indent() << "await fn(msg.SeqID, iprot, oprot, cancellationToken);" << endl
+        << indent() << "((ProcessFunction)fn)(seqid, input_protocol, output_protocol);" << endl
         << endl;
     indent_down();
     out << indent() << "}" << endl;
-    out << indent() << "catch (IOException)" << endl
+    // FIXME
+    //out << indent() << "catch (IOError e)" << endl
+    out << indent() << "catch (Error e)" << endl
         << indent() << "{" << endl;
     indent_up();
     out << indent() << "return false;" << endl;
@@ -1315,7 +1434,7 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
 
     for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
     {
-        generate_process_function_async(out, tservice, *f_iter);
+        generate_process_function(out, tservice, *f_iter);
     }
 
     indent_down();
@@ -1329,7 +1448,8 @@ void t_vala_generator::generate_function_helpers(ostream& out, t_function* tfunc
         return;
     }
 
-    t_struct result(program_, tfunction->get_name() + "_result");
+    string result_type_name = tfunction->get_name() + "_result";
+    t_struct result(program_, result_type_name);
     t_field success(tfunction->get_returntype(), "success", 0);
     if (!tfunction->get_returntype()->is_void())
     {
@@ -1347,24 +1467,24 @@ void t_vala_generator::generate_function_helpers(ostream& out, t_function* tfunc
     generate_vala_struct_definition(out, &result, false, true, true);
 }
 
-void t_vala_generator::generate_process_function_async(ostream& out, t_service* tservice, t_function* tfunction)
+void t_vala_generator::generate_process_function(ostream& out, t_service* tservice, t_function* tfunction)
 {
     (void)tservice;
-    out << indent() << "public async Task " << tfunction->get_name()
-        << "_ProcessAsync(int seqid, TProtocol iprot, TProtocol oprot, CancellationToken cancellationToken)" << endl
+    out << indent() << "private void process_" << to_snake_case(tfunction->get_name())
+        << "(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
 
-    string argsname = tfunction->get_name() + "Args";
-    string resultname = tfunction->get_name() + "Result";
+    string argsname = tfunction->get_name() + "_args";
+    string resultname = tfunction->get_name() + "_result";
 
-    out << indent() << "var args = new " << argsname << "();" << endl
-        << indent() << "await args.ReadAsync(iprot, cancellationToken);" << endl
-        << indent() << "await iprot.ReadMessageEndAsync(cancellationToken);" << endl;
+    out << indent() << "var args = new " << to_pascal_case(argsname) << "();" << endl
+        << indent() << "args.read(input_protocol);" << endl
+        << indent() << "input_protocol.read_message_end();" << endl;
 
     if (!tfunction->is_oneway())
     {
-        out << indent() << "var result = new " << resultname << "();" << endl;
+        out << indent() << "var result = new " << to_pascal_case(resultname) << "();" << endl;
     }
 
     out << indent() << "try" << endl
@@ -1374,24 +1494,30 @@ void t_vala_generator::generate_process_function_async(ostream& out, t_service* 
     t_struct* xs = tfunction->get_xceptions();
     const vector<t_field*>& xceptions = xs->get_members();
 
-    if (xceptions.size() > 0)
-    {
-        out << indent() << "try" << endl
-            << indent() << "{" << endl;
-        indent_up();
-    }
-
     t_struct* arg_struct = tfunction->get_arglist();
     const vector<t_field*>& fields = arg_struct->get_members();
     vector<t_field*>::const_iterator f_iter;
 
+    string xception_out_arguments;
+    string xception_assignments;
+    vector<t_field*>::const_iterator x_iter;
+    prepare_member_name_mapping(xs, xs->get_members(), resultname);
+    for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
+    {
+        string name = normalize_name((*x_iter)->get_name());
+        out << indent() << type_name((*x_iter)->get_type()) << " " << name << ";" << endl;
+        xception_out_arguments += "out " + name;
+        xception_assignments += "result." + prop_name(*x_iter) + " = " + name + ";" + endl;
+    }
+
     out << indent();
+
     if (!tfunction->is_oneway() && !tfunction->get_returntype()->is_void())
     {
         out << "result.Success = ";
     }
 
-    out << "await _iAsync." << normalize_name(tfunction->get_name()) << "Async(";
+    out << "service." << to_snake_case(tfunction->get_name()) << "(";
 
     bool first = true;
     prepare_member_name_mapping(arg_struct);
@@ -1411,57 +1537,40 @@ void t_vala_generator::generate_process_function_async(ostream& out, t_service* 
 
     cleanup_member_name_mapping(arg_struct);
 
-    if (!first)
+    if (!first && !xception_out_arguments.empty())
     {
         out << ", ";
     }
 
-    out << "cancellationToken);" << endl;
+    out << xception_out_arguments << ");" << endl;
 
-    vector<t_field*>::const_iterator x_iter;
-
-    prepare_member_name_mapping(xs, xs->get_members(), resultname);
-    if (xceptions.size() > 0)
+    if (!xception_assignments.empty())
     {
-        indent_down();
-        out << indent() << "}" << endl;
-
-        for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
-        {
-            out << indent() << "catch (" << type_name((*x_iter)->get_type()) << " " << (*x_iter)->get_name() << ")" << endl
-                << indent() << "{" << endl;
-
-            if (!tfunction->is_oneway())
-            {
-                indent_up();
-                out << indent() << "result." << prop_name(*x_iter) << " = " << (*x_iter)->get_name() << ";" << endl;
-                indent_down();
-            }
-            out << indent() << "}" << endl;
-        }
+        out << indent() << xception_assignments << endl;
     }
 
     if (!tfunction->is_oneway())
     {
-        out << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\""
-                << correct_function_name_for_async(tfunction->get_name()) << "\", TMessageType.Reply, seqid), cancellationToken); " << endl
-            << indent() << "await result.WriteAsync(oprot, cancellationToken);" << endl;
+        out << indent() << "output_protocol.write_message_begin(\""
+                << tfunction->get_name() << "\", MessageType.REPLY, seqid); " << endl
+            << indent() << "result.write(output_protocol);" << endl;
     }
     indent_down();
 
     cleanup_member_name_mapping(xs);
 
     out << indent() << "}" << endl
-        << indent() << "catch (TTransportException)" << endl
-        << indent() << "{" << endl
-        << indent() << "  throw;" << endl
-        << indent() << "}" << endl
-        << indent() << "catch (Exception ex)" << endl
+        << indent() << "catch (TransportError e)" << endl
+        << indent() << "{" << endl;
+    indent_up();
+    out << indent() << "throw e;" << endl;
+    indent_down();
+    out << indent() << "}" << endl
+        << indent() << "catch (Error e)" << endl
         << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "Console.Error.WriteLine(\"Error occurred in processor:\");" << endl
-        << indent() << "Console.Error.WriteLine(ex.ToString());" << endl;
+    out << indent() << "stderr.printf(\"Error occurred in processor:\\n%s\\n\", e.message);" << endl;
 
     if (tfunction->is_oneway())
     {
@@ -1470,15 +1579,18 @@ void t_vala_generator::generate_process_function_async(ostream& out, t_service* 
     }
     else
     {
-        out << indent() << "var x = new TApplicationException(TApplicationException.ExceptionType.InternalError,\" Internal error.\");" << endl
-            << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\"" << correct_function_name_for_async(tfunction->get_name())
-            << "\", TMessageType.Exception, seqid), cancellationToken);" << endl
-            << indent() << "await x.WriteAsync(oprot, cancellationToken);" << endl;
+        out << indent() << "var x = new ApplicationException();" << endl
+            << indent() << "x.type = ApplicationExceptionError.INTERNAL_ERROR;" << endl
+            << indent() << "x.message = \"Internal error.\";" << endl
+            << indent() << "output_protocol.write_message_begin(\"" << tfunction->get_name()
+            << "\", MessageType.EXCEPTION, seqid);" << endl
+            << indent() << "x.write(output_protocol);" << endl;
         indent_down();
 
         out << indent() << "}" << endl
-            << indent() << "await oprot.WriteMessageEndAsync(cancellationToken);" << endl
-            << indent() << "await oprot.Transport.FlushAsync(cancellationToken);" << endl;
+            << endl
+            << indent() << "output_protocol.write_message_end();" << endl
+            << indent() << "output_protocol.transport.flush();" << endl;
     }
 
     indent_down();
@@ -1510,14 +1622,7 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
     }
     else if (type->is_base_type() || type->is_enum())
     {
-        out << indent() << name << " = ";
-
-        if (type->is_enum())
-        {
-            out << "(" << type_name(type) << ")";
-        }
-
-        out << "protocol";
+        out << indent();
 
         if (type->is_base_type())
         {
@@ -1530,30 +1635,31 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
             case t_base_type::TYPE_STRING:
                 if (type->is_binary())
                 {
-                    out << "read_binary(buf, len);";
+                    out << "void* buf;" << endl
+                        << "uint32 len;";
                 }
                 else
                 {
-                    out << "read_string(str);";
+                    out << "string str;";
                 }
                 break;
             case t_base_type::TYPE_BOOL:
-                out << "read_bool(value);";
+                out << "bool value;";
                 break;
             case t_base_type::TYPE_I8:
-                out << "read_byte(value);";
+                out << "int8 value;";
                 break;
             case t_base_type::TYPE_I16:
-                out << "read_i16(value);";
+                out << "int16 value;";
                 break;
             case t_base_type::TYPE_I32:
-                out << "read_i32(value);";
+                out << "int32 value;";
                 break;
             case t_base_type::TYPE_I64:
-                out << "read_i64(value);";
+                out << "int64 value;";
                 break;
             case t_base_type::TYPE_DOUBLE:
-                out << "read_double(value);";
+                out << "double value;";
                 break;
             default:
                 throw "compiler error: no Vala name for base type " + t_base_type::t_base_name(tbase);
@@ -1561,7 +1667,54 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
         }
         else if (type->is_enum())
         {
-            out << "read_i32(value);";
+            out << "int32 value;";
+        }
+        out << endl;
+
+        if (type->is_base_type())
+        {
+            t_base_type::t_base tbase = static_cast<t_base_type*>(type)->get_base();
+            switch (tbase)
+            {
+            case t_base_type::TYPE_VOID:
+                throw "compiler error: cannot serialize void field in a struct: " + name;
+                break;
+            case t_base_type::TYPE_STRING:
+                out << indent() << "protocol.";
+                if (type->is_binary())
+                {
+                    out << "read_binary(buf, len);";
+                }
+                else
+                {
+                    out << "read_string(out str);";
+                }
+                break;
+            case t_base_type::TYPE_BOOL:
+                out << indent() << name << " = protocol.read_bool(out value);";
+                break;
+            case t_base_type::TYPE_I8:
+                out << indent() << name << " = protocol.read_byte(out value);";
+                break;
+            case t_base_type::TYPE_I16:
+                out << indent() << name << " = protocol.read_i16(out value);";
+                break;
+            case t_base_type::TYPE_I32:
+                out << indent() << name << " = protocol.read_i32(out value);";
+                break;
+            case t_base_type::TYPE_I64:
+                out << indent() << name << " = protocol.read_i64(out value);";
+                break;
+            case t_base_type::TYPE_DOUBLE:
+                out << indent() << name << " = protocol.read_double(out value);";
+                break;
+            default:
+                throw "compiler error: no Vala name for base type " + t_base_type::t_base_name(tbase);
+            }
+        }
+        else if (type->is_enum())
+        {
+            out << indent() << name << " = (" << type_name(type) << ")protocol.read_i32(out value);";
         }
         out << endl;
     }
@@ -1574,7 +1727,7 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
 void t_vala_generator::generate_deserialize_struct(ostream& out, t_struct* tstruct, string prefix)
 {
     out << indent() << prefix << " = new " << type_name(tstruct) << "();" << endl
-            << indent() << "await " << prefix << ".ReadAsync(iprot, cancellationToken);" << endl;
+            << indent() << prefix << ".read(protocol);" << endl;
 }
 
 void t_vala_generator::generate_deserialize_container(ostream& out, t_type* ttype, string prefix)
@@ -1599,20 +1752,20 @@ void t_vala_generator::generate_deserialize_container(ostream& out, t_type* ttyp
 
     if (ttype->is_map())
     {
-        out << indent() << "protocol.read_map_begin(key_type, value_type, size);" << endl;
+        out << indent() << "protocol.read_map_begin(out key_type, out value_type, out size);" << endl;
     }
     else if (ttype->is_set())
     {
-        out << indent() << "protocol.read_set_begin(element_type, size);" << endl;
+        out << indent() << "protocol.read_set_begin(out element_type, out size);" << endl;
     }
     else if (ttype->is_list())
     {
-        out << indent() << "protocol.read_list_begin(element_type, size);" << endl;
+        out << indent() << "protocol.read_list_begin(out element_type, out size);" << endl;
     }
 
-    out << indent() << prefix << " = new " << type_name(ttype) << "(" << obj << ".Count);" << endl;
+    out << indent() << prefix << " = new " << type_name(ttype) << "(" << obj << ".length);" << endl;
     string i = tmp("_i");
-    out << indent() << "for(int " << i << " = 0; " << i << " < " << obj << ".Count; ++" << i << ")" << endl
+    out << indent() << "for(int " << i << " = 0; " << i << " < " << obj << ".length; ++" << i << ")" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -1687,7 +1840,7 @@ void t_vala_generator::generate_deserialize_list_element(ostream& out, t_list* t
 
     generate_deserialize_field(out, &felem);
 
-    out << indent() << prefix << ".Add(" << elem << ");" << endl;
+    out << indent() << prefix << ".add(" << elem << ");" << endl;
 }
 
 void t_vala_generator::generate_serialize_field(ostream& out, t_field* tfield, string prefix, bool is_propertyless)
@@ -1747,7 +1900,7 @@ void t_vala_generator::generate_serialize_field(ostream& out, t_field* tfield, s
                 out << "write_i16(" << nullable_name << ");";
                 break;
             case t_base_type::TYPE_I32:
-                out << "write_i32(" << nullable_name << ", cancellationToken);";
+                out << "write_i32(" << nullable_name << ");";
                 break;
             case t_base_type::TYPE_I64:
                 out << "write_i64(" << nullable_name << ");";
@@ -1774,7 +1927,7 @@ void t_vala_generator::generate_serialize_field(ostream& out, t_field* tfield, s
 void t_vala_generator::generate_serialize_struct(ostream& out, t_struct* tstruct, string prefix)
 {
     (void)tstruct;
-    out << indent() << prefix << ".WriteAsync(oprot, cancellationToken);" << endl;
+    out << indent() << prefix << ".write(protocol);" << endl;
 }
 
 void t_vala_generator::generate_serialize_container(ostream& out, t_type* ttype, string prefix)
@@ -1784,19 +1937,22 @@ void t_vala_generator::generate_serialize_container(ostream& out, t_type* ttype,
 
     if (ttype->is_map())
     {
-        out << indent() << "protocol.write_map_begin(new HashMap(" << type_to_enum(static_cast<t_map*>(ttype)->get_key_type())
+        out << indent() << "protocol.write_map_begin(new " << (use_libgee ? "HashMap(" : "HashTable(")
+            << type_to_enum(static_cast<t_map*>(ttype)->get_key_type())
             << ", " << type_to_enum(static_cast<t_map*>(ttype)->get_val_type()) << ", " << prefix
-            << ".Count));" << endl;
+            << ".length));" << endl;
     }
     else if (ttype->is_set())
     {
-        out << indent() << "protocol.write_set_begin(new HashSet(" << type_to_enum(static_cast<t_set*>(ttype)->get_elem_type())
-            << ", " << prefix << ".Count));" << endl;
+        out << indent() << "protocol.write_set_begin(new " << (use_libgee ? "HashSet(" : "GenericSet(")
+            << type_to_enum(static_cast<t_set*>(ttype)->get_elem_type())
+            << ", " << prefix << ".length));" << endl;
     }
     else if (ttype->is_list())
     {
-        out << indent() << "protocol.write_list_begin(new ArrayList("
-            << type_to_enum(static_cast<t_list*>(ttype)->get_elem_type()) << ", " << prefix << ".Count));"
+        t_list* tlist = static_cast<t_list*>(ttype);
+        out << indent() << "protocol.write_list_begin(new " << (use_libgee ? "ArrayList" : get_glib_array_type(tlist->get_elem_type())) << "("
+            << type_to_enum(tlist->get_elem_type()) << ", " << prefix << ".length));"
             << endl;
     }
 
@@ -1804,7 +1960,7 @@ void t_vala_generator::generate_serialize_container(ostream& out, t_type* ttype,
     if (ttype->is_map())
     {
         out << indent() << "foreach (" << type_name(static_cast<t_map*>(ttype)->get_key_type()) << " " << iter
-            << " in " << prefix << ".Keys)";
+            << " in " << prefix << ".get_keys())";
     }
     else if (ttype->is_set())
     {
@@ -2094,19 +2250,19 @@ string t_vala_generator::type_name(t_type* ttype)
     if (ttype->is_map())
     {
         t_map* tmap = static_cast<t_map*>(ttype);
-        return "HashMap<" + type_name(tmap->get_key_type()) + ", " + type_name(tmap->get_val_type()) + ">";
+        return (use_libgee ? "HashMap<" : "HashTable<") + type_name(tmap->get_key_type()) + ", " + type_name(tmap->get_val_type()) + ">";
     }
 
     if (ttype->is_set())
     {
         t_set* tset = static_cast<t_set*>(ttype);
-        return "HashSet<" + type_name(tset->get_elem_type()) + ">";
+        return (use_libgee ? "HashSet<" : "GenericSet<") + type_name(tset->get_elem_type()) + ">";
     }
 
     if (ttype->is_list())
     {
         t_list* tlist = static_cast<t_list*>(ttype);
-        return "ArrayList<" + type_name(tlist->get_elem_type()) + ">";
+        return (use_libgee ? "ArrayList" : get_glib_array_type(tlist->get_elem_type())) + "<" + type_name(tlist->get_elem_type()) + ">";
     }
 
     t_program* program = ttype->get_program();
@@ -2208,10 +2364,12 @@ string t_vala_generator::declare_field(t_field* tfield, bool init, string prefix
     return result + ";";
 }
 
-string t_vala_generator::function_signature(t_function* tfunction, string prefix)
+string t_vala_generator::function_signature(t_function* tfunction, string prefix, bool is_abstract)
 {
     t_type* ttype = tfunction->get_returntype();
-    return type_name(ttype) + " " + normalize_name(prefix + tfunction->get_name()) + "(" + argument_list(tfunction->get_arglist()) + ")";
+    return (is_abstract ? "public abstract " : "") + type_name(ttype) + " "
+        + to_snake_case(prefix + tfunction->get_name()) 
+        + "(" + argument_list(tfunction->get_arglist(), tfunction->get_xceptions()) + ") throws Error";
 }
 
 string t_vala_generator::function_signature_async(t_function* tfunction, string prefix)
@@ -2219,13 +2377,13 @@ string t_vala_generator::function_signature_async(t_function* tfunction, string 
     t_type* ttype = tfunction->get_returntype();
 
     string result = type_name(ttype) + " " + normalize_name(prefix + tfunction->get_name()) + "(";
-    string args = argument_list(tfunction->get_arglist());
+    string args = argument_list(tfunction->get_arglist(), tfunction->get_xceptions());
     result += args;
 
     return result;
 }
 
-string t_vala_generator::argument_list(t_struct* tstruct)
+string t_vala_generator::argument_list(t_struct* tstruct, t_struct* xs)
 {
     string result = "";
     const vector<t_field*>& fields = tstruct->get_members();
@@ -2243,6 +2401,21 @@ string t_vala_generator::argument_list(t_struct* tstruct)
         }
         result += type_name((*f_iter)->get_type()) + " " + normalize_name((*f_iter)->get_name());
     }
+
+    const vector<t_field*>& xceptions = xs->get_members();
+    vector<t_field*>::const_iterator x_iter;
+    for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
+    {
+        if (first)
+        {
+            first = false;
+        }
+        else
+        {
+            result += ", ";
+        }
+        result += "out " + type_name((*x_iter)->get_type()) + " " + normalize_name((*x_iter)->get_name());
+    }
     return result;
 }
 
@@ -2259,42 +2432,42 @@ string t_vala_generator::type_to_enum(t_type* type)
         switch (tbase)
         {
         case t_base_type::TYPE_VOID:
-            throw "Type.VOID";
+            throw "Thrift.Type.VOID";
         case t_base_type::TYPE_STRING:
-            return "Type.STRING";
+            return "Thrift.Type.STRING";
         case t_base_type::TYPE_BOOL:
-            return "Type.BOOL";
+            return "Thrift.Type.BOOL";
         case t_base_type::TYPE_I8:
-            return "Type.BYTE";
+            return "Thrift.Type.BYTE";
         case t_base_type::TYPE_I16:
-            return "Type.I16";
+            return "Thrift.Type.I16";
         case t_base_type::TYPE_I32:
-            return "Type.I32";
+            return "Thrift.Type.I32";
         case t_base_type::TYPE_I64:
-            return "Type.I64";
+            return "Thrift.Type.I64";
         case t_base_type::TYPE_DOUBLE:
-            return "Type.DOUBLE";
+            return "Thrift.Type.DOUBLE";
         }
     }
     else if (type->is_enum())
     {
-        return "Type.I32";
+        return "Thrift.Type.I32";
     }
     else if (type->is_struct() || type->is_xception())
     {
-        return "Type.STRUCT";
+        return "Thrift.Type.STRUCT";
     }
     else if (type->is_map())
     {
-        return "Type.MAP";
+        return "Thrift.Type.MAP";
     }
     else if (type->is_set())
     {
-        return "Type.SET";
+        return "Thrift.Type.SET";
     }
     else if (type->is_list())
     {
-        return "Type.LIST";
+        return "Thrift.Type.LIST";
     }
 
     throw "INVALID TYPE IN type_to_enum: " + type->get_name();
@@ -2398,5 +2571,6 @@ string t_vala_generator::get_enum_class_name(t_type* type)
 THRIFT_REGISTER_GENERATOR(
     vala,
     "Vala",
+    "    libgee:          Use Libgee for the collection classes.\n"
     "    pascal:          Generate Pascal Case property names according to Microsoft naming convention.\n"
 )
