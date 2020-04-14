@@ -909,3 +909,16 @@ thrift_binary_protocol_class_init (ThriftBinaryProtocolClass *klass)
   cls->read_string = thrift_binary_protocol_read_string;
   cls->read_binary = thrift_binary_protocol_read_binary;
 }
+
+ThriftBinaryProtocol*
+thrift_binary_protocol_new (ThriftTransport* transport) 
+{
+  ThriftBinaryProtocol* protocol;
+
+  protocol = g_object_new (THRIFT_TYPE_BINARY_PROTOCOL,
+                           "transport",
+                           transport,
+                           NULL);
+  
+  return protocol;
+}

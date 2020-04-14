@@ -425,3 +425,38 @@ thrift_socket_class_init (ThriftSocketClass *cls)
   ttc->write_end = thrift_socket_write_end;
   ttc->flush = thrift_socket_flush;
 }
+
+ThriftSocket*
+thrift_socket_new (const gchar* hostname,
+                   guint port)
+{
+  ThriftSocket* socket;
+
+  socket = g_object_new (THRIFT_TYPE_SOCKET,
+                         "hostname",
+                         hostname,
+                         "port",
+                         port,
+                         NULL);
+  
+  return socket;
+}
+
+ThriftSocket*
+thrift_socket_new_with_path (const gchar* hostname,
+                   guint port,
+                   const gchar* path)
+{
+  ThriftSocket* socket;
+
+  socket = g_object_new (THRIFT_TYPE_SOCKET,
+                         "hostname",
+                         hostname,
+                         "port",
+                         port,
+                         "path",
+                         path,
+                         NULL);
+  
+  return socket;
+}

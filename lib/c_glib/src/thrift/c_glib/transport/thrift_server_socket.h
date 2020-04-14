@@ -85,6 +85,7 @@ typedef enum
 /* define a error domain for GError to use */
 GQuark thrift_server_socket_error_quark (void);
 #define THRIFT_SERVER_SOCKET_ERROR (thrift_server_socket_error_quark ())
+ThriftServerSocket* thrift_server_socket_new (guint port);
 
 G_END_DECLS
 

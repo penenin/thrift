@@ -305,3 +305,15 @@ thrift_server_socket_class_init (ThriftServerSocketClass *cls)
   tstc->close = thrift_server_socket_close;
 }
 
+ThriftServerSocket* 
+thrift_server_socket_new (guint port)
+{
+  ThriftServerSocket* socket;
+
+  socket = g_object_new (THRIFT_TYPE_SERVER_SOCKET,
+                         "port",
+                         port,
+                         NULL);
+  
+  return socket;
+}

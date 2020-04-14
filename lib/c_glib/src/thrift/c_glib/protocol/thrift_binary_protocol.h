@@ -66,6 +66,7 @@ struct _ThriftBinaryProtocolClass
 
 /* used by THRIFT_TYPE_BINARY_PROTOCOL */
 GType thrift_binary_protocol_get_type (void);
+ThriftBinaryProtocol* thrift_binary_protocol_new (ThriftTransport* transport);
 
 G_END_DECLS
 

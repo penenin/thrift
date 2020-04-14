@@ -275,3 +275,14 @@ thrift_application_exception_class_init (ThriftApplicationExceptionClass *class)
                                    PROP_THRIFT_APPLICATION_EXCEPTION_MESSAGE,
                                    param_spec);
 }
+
+ThriftApplicationException*
+thrift_application_exception_new (void)
+{
+  ThriftApplicationException* exception;
+
+  exception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                           NULL);
+  
+  return exception;
+}

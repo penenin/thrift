@@ -81,6 +81,8 @@ typedef enum
 GQuark thrift_application_exception_error_quark (void);
 #define THRIFT_APPLICATION_EXCEPTION_ERROR (thrift_application_exception_error_quark ())
 
+ThriftApplicationException* thrift_application_exception_new (void);
+
 G_END_DECLS
 
 #endif /* _THRIFT_APPLICATION_EXCEPTION_H */
