@@ -7,6 +7,7 @@ void main()
     try
     {
         transport = new Socket("localhost", 9090);
+        transport = new BufferedTransport(transport);
         Protocol protocol = new BinaryProtocol(transport);
         Calculator.Client client = new Calculator.Client(protocol);
 

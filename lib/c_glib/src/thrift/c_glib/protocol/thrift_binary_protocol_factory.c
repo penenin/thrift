@@ -48,3 +48,14 @@ thrift_binary_protocol_factory_init (ThriftBinaryProtocolFactory *factory)
 {
   THRIFT_UNUSED_VAR (factory);
 }
+
+ThriftBinaryProtocolFactory* 
+thrift_binary_protocol_factory_new (void)
+{
+  ThriftBinaryProtocolFactory* factory;
+
+  factory = g_object_new (THRIFT_TYPE_BINARY_PROTOCOL_FACTORY,
+                          NULL);
+  
+  return factory;
+}

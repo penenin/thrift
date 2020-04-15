@@ -81,6 +81,7 @@ ThriftTransport *
 thrift_buffered_transport_factory_get_transport (ThriftTransportFactory *factory,
                                                  ThriftTransport *transport);
 
+ThriftBufferedTransportFactory* thrift_buffered_transport_factory_new (void);
 G_END_DECLS
 
 #endif /* _THRIFT_BUFFERED_TRANSPORT_FACTORY_H */

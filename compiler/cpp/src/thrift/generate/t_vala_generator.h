@@ -124,6 +124,7 @@ public:
   string type_to_enum(t_type* ttype);
   string prop_name(t_field* tfield, bool suppress_mapping = false);
   string convert_to_pascal_case(const string& str);
+  string convert_to_snake_case(const string& str);
   string get_enum_class_name(t_type* type);
 
 private:
@@ -132,7 +133,7 @@ private:
 
   bool nullable_;
   bool use_libgee;
-  bool use_pascal_case_properties;
+  bool use_standard_case;
 
   map<string, int> vala_keywords;
   vector<member_mapping_scope> member_mapping_scopes;

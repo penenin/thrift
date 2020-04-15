@@ -49,7 +49,7 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
 {
     (void)option_string;
     use_libgee = false;
-    use_pascal_case_properties = false;
+    use_standard_case = false;
 
     map<string, string>::const_iterator iter;
 
@@ -59,9 +59,9 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
         {
           use_libgee = true;
         }
-        else if (iter->first.compare("pascal") == 0)
+        else if (iter->first.compare("standard") == 0)
         {
-          use_pascal_case_properties = true;
+          use_standard_case = true;
         }
         else 
         {
@@ -72,40 +72,19 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
     out_dir_base_ = "gen-vala";
 }
 
-static string to_pascal_case(const string& identifier)
+string t_vala_generator::convert_to_snake_case(const string& str)
 {
-    string out;
-    bool must_capitalize = true;
-    for (auto it = identifier.begin(); it != identifier.end(); ++it) 
+    if (!use_standard_case)
     {
-        if (std::isalnum(*it)) 
-        {
-            if (must_capitalize) 
-            {
-                out.append(1, (char)::toupper(*it));
-                must_capitalize = false;
-            } 
-            else 
-            {
-                out.append(1, *it);
-            }
-        } 
-        else if(*it == '_')
-        {
-            must_capitalize = true;
-        }
+        return str;
     }
-    return out;
-}
 
-static string to_snake_case(const string& identifier)
-{
     string out;
-    for (auto it = identifier.begin(); it != identifier.end(); ++it) 
+    for (auto it = str.begin(); it != str.end(); ++it) 
     {
         if (std::isupper(*it))
         {
-            if (it != identifier.begin()) 
+            if (it != str.begin()) 
             {
                 out.append(1, '_');
             }
@@ -282,7 +261,7 @@ void t_vala_generator::init_generator()
 
     pverbose("Vala options:\n");
     pverbose("- libgee ..... %s\n", (use_libgee ? "ON" : "off"));
-    pverbose("- pascal ..... %s\n", (use_pascal_case_properties ? "ON" : "off"));
+    pverbose("- pascal ..... %s\n", (use_standard_case ? "ON" : "off"));
 }
 
 string t_vala_generator::normalize_name(string name)
@@ -734,7 +713,7 @@ void t_vala_generator::generate_vala_struct_definition(ostream& out, t_struct* t
 
     out << endl;
 
-    string vala_struct_name = to_pascal_case(normalize_name(tstruct->get_name()));
+    string vala_struct_name = convert_to_pascal_case(normalize_name(tstruct->get_name()));
 
     generate_vala_doc(out, tstruct);
     prepare_member_name_mapping(tstruct);
@@ -1150,7 +1129,7 @@ void t_vala_generator::generate_service_interface(ostream& out, t_service* tserv
 
     generate_vala_doc(out, tservice);
 
-    out << indent() << "public interface I" << to_pascal_case(tservice->get_name()) << extends_iface << endl
+    out << indent() << "public interface I" << convert_to_pascal_case(tservice->get_name()) << extends_iface << endl
         << indent() << "{" << endl;
 
     indent_up();
@@ -1190,7 +1169,7 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
     }
     else
     {
-        extends_client = " : I" + to_pascal_case(tservice->get_name()) + ", Object";
+        extends_client = " : I" + convert_to_pascal_case(tservice->get_name()) + ", Object";
     }
 
     out << endl;
@@ -1247,7 +1226,7 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
             << indent() << "{" << endl;
         indent_up();
 
-        string argsname = to_pascal_case((*functions_iterator)->get_name() + "Args");
+        string argsname = convert_to_pascal_case((*functions_iterator)->get_name() + "Args");
 
         out << indent() << "int32 seqid = 0;" << endl
             << indent() << "output_protocol.write_message_begin(\"" << function_name
@@ -1272,7 +1251,7 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
 
         if (!(*functions_iterator)->is_oneway())
         {
-            string resultname = to_pascal_case((*functions_iterator)->get_name()) + "Result";
+            string resultname = convert_to_pascal_case((*functions_iterator)->get_name()) + "Result";
             t_struct noargs(program_);
             t_struct* xs = (*functions_iterator)->get_xceptions();
             prepare_member_name_mapping(xs, xs->get_members(), resultname);
@@ -1360,29 +1339,18 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
 
     indent_up();
 
-    string container = use_libgee ? "HashMap" : "HashTable";
-    string interface_name = "I" + to_pascal_case(tservice->get_name());
+    string interface_name = "I" + convert_to_pascal_case(tservice->get_name());
     out << indent() << "private " << interface_name << " service;" << endl
         << endl
         << indent() << "private delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
-        << endl
-        << indent() << "private " << container << "<string, void*> process_map = new " << container << "<string, void*>(str_hash, str_equal);" << endl
         << endl
         << indent() << "public Processor(" << interface_name << " service)" << endl;
     indent_up();
     out << indent() << "requires (service != null)" << endl;
     indent_down();
-
     out << indent() << "{" << endl;
     indent_up();
-
     out << indent() << "this.service = service;" << endl;
-    for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
-    {    
-        string function_name = (*f_iter)->get_name();
-        out << indent() << "process_map[\"" << function_name << "\"] = (void*)process_" << to_snake_case(function_name) << ";" << endl;
-    }
-
     indent_down();
     out << indent() << "}" << endl
         << endl
@@ -1397,7 +1365,23 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
         << indent() << "int32 seqid;" << endl
         << indent() << "input_protocol.read_message_begin(out name, out message_type, out seqid);" << endl
         << endl
-        << indent() << "var fn = process_map.get(name);" << endl
+        << indent() << "ProcessFunction fn = null;" << endl
+        << indent() << "switch (name)" << endl
+        << indent() << "{" << endl;
+    indent_up();
+
+    for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
+    {    
+        string function_name = (*f_iter)->get_name();
+        out << indent() << "case \"" << function_name << "\":" << endl;
+        indent_up();
+        out << indent() << "fn = process_" << convert_to_snake_case(function_name) << ";" << endl
+            << indent() << "break;" << endl;
+        indent_down();
+    }
+
+    indent_down();
+    out << indent() << "}" << endl
         << endl
         << indent() << "if (fn == null)" << endl
         << indent() << "{" << endl;
@@ -1415,7 +1399,7 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
     indent_down();
     out << indent() << "}" << endl
         << endl
-        << indent() << "((ProcessFunction)fn)(seqid, input_protocol, output_protocol);" << endl
+        << indent() << "fn(seqid, input_protocol, output_protocol);" << endl
         << endl;
     indent_down();
     out << indent() << "}" << endl;
@@ -1470,7 +1454,7 @@ void t_vala_generator::generate_function_helpers(ostream& out, t_function* tfunc
 void t_vala_generator::generate_process_function(ostream& out, t_service* tservice, t_function* tfunction)
 {
     (void)tservice;
-    out << indent() << "private void process_" << to_snake_case(tfunction->get_name())
+    out << indent() << "private void process_" << convert_to_snake_case(tfunction->get_name())
         << "(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
@@ -1478,13 +1462,13 @@ void t_vala_generator::generate_process_function(ostream& out, t_service* tservi
     string argsname = tfunction->get_name() + "_args";
     string resultname = tfunction->get_name() + "_result";
 
-    out << indent() << "var args = new " << to_pascal_case(argsname) << "();" << endl
+    out << indent() << "var args = new " << convert_to_pascal_case(argsname) << "();" << endl
         << indent() << "args.read(input_protocol);" << endl
         << indent() << "input_protocol.read_message_end();" << endl;
 
     if (!tfunction->is_oneway())
     {
-        out << indent() << "var result = new " << to_pascal_case(resultname) << "();" << endl;
+        out << indent() << "var result = new " << convert_to_pascal_case(resultname) << "();" << endl;
     }
 
     out << indent() << "try" << endl
@@ -1517,7 +1501,7 @@ void t_vala_generator::generate_process_function(ostream& out, t_service* tservi
         out << "result.Success = ";
     }
 
-    out << "service." << to_snake_case(tfunction->get_name()) << "(";
+    out << "service." << convert_to_snake_case(tfunction->get_name()) << "(";
 
     bool first = true;
     prepare_member_name_mapping(arg_struct);
@@ -1570,7 +1554,7 @@ void t_vala_generator::generate_process_function(ostream& out, t_service* tservi
         << indent() << "{" << endl;
     indent_up();
 
-    out << indent() << "stderr.printf(\"Error occurred in processor:\\n%s\\n\", e.message);" << endl;
+    out << indent() << "stderr.printf(@\"Error occurred in processor:\\n$(e.message)\\n\");" << endl;
 
     if (tfunction->is_oneway())
     {
@@ -2200,23 +2184,31 @@ void t_vala_generator::prepare_member_name_mapping(void* scope, const vector<t_f
 
 
 string t_vala_generator::convert_to_pascal_case(const string& str) {
+  if (!use_standard_case)
+  {
+      return str;
+  }
+
   string out;
   bool must_capitalize = true;
-  bool first_character = true;
-  for (auto it = str.begin(); it != str.end(); ++it) {
-    if (std::isalnum(*it)) {
-      if (must_capitalize) {
-        out.append(1, (char)::toupper(*it));
-        must_capitalize = false;
-      } else {
-        out.append(1, *it);
-      }
-    } else {
-      if (first_character) //this is a private variable and should not be PascalCased
-        return str;
-      must_capitalize = true;
+  for (auto it = str.begin(); it != str.end(); ++it) 
+  {
+    if (std::isalnum(*it)) 
+    {
+        if (must_capitalize) 
+        {
+            out.append(1, (char)::toupper(*it));
+            must_capitalize = false;
+        } 
+        else 
+        {
+            out.append(1, *it);
+        }
+    } 
+    else if(*it == '_')
+    {
+        must_capitalize = true;
     }
-    first_character = false;
   }
   return out;
 }
@@ -2226,7 +2218,7 @@ string t_vala_generator::prop_name(t_field* tfield, bool suppress_mapping) {
   string name(tfield->get_name());
   if (suppress_mapping) {
     name[0] = toupper(name[0]);
-    if (use_pascal_case_properties)
+    if (use_standard_case)
       name = t_vala_generator::convert_to_pascal_case(name);
   } else {
     name = get_mapped_member_name(name);
@@ -2368,7 +2360,7 @@ string t_vala_generator::function_signature(t_function* tfunction, string prefix
 {
     t_type* ttype = tfunction->get_returntype();
     return (is_abstract ? "public abstract " : "") + type_name(ttype) + " "
-        + to_snake_case(prefix + tfunction->get_name()) 
+        + convert_to_snake_case(prefix + tfunction->get_name()) 
         + "(" + argument_list(tfunction->get_arglist(), tfunction->get_xceptions()) + ") throws Error";
 }
 
@@ -2572,5 +2564,5 @@ THRIFT_REGISTER_GENERATOR(
     vala,
     "Vala",
     "    libgee:          Use Libgee for the collection classes.\n"
-    "    pascal:          Generate Pascal Case property names according to Microsoft naming convention.\n"
+    "    standard:        Generate names according to Vala naming convention.\n"
 )

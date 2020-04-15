@@ -22,7 +22,7 @@ public class CalculatorHandler : ICalculator, SharedService
 
     public int32 calculate(int32 logid, Work work, out InvalidOperation ouch)
     {
-        stdout.printf("calculate($logid, [$(work.Op),$(work.Num1),$(work.Num2)])\n");
+        stdout.printf(@"calculate($logid, [$(work.Op),$(work.Num1),$(work.Num2)])\n");
         int val = 0;
         switch (work.Op)
         {
@@ -84,8 +84,10 @@ void main()
     {
         CalculatorHandler handler = new CalculatorHandler();
         Calculator.Processor processor = new Calculator.Processor(handler);
-        ServerTransport serverTransport = new ServerSocket(9090);
-        Server server = new SimpleServer(processor, serverTransport);
+        ServerTransport server_transport = new ServerSocket(9090);
+        BufferedTransportFactory transport_factory = new BufferedTransportFactory();
+        BinaryProtocolFactory protocol_factory = new BinaryProtocolFactory();
+        Server server = new SimpleServer(processor, server_transport, transport_factory, protocol_factory);
 
         stdout.printf("Starting the server...\n");
         server.serve();

@@ -148,9 +148,9 @@ thrift_simple_server_class_init (ThriftSimpleServerClass *class)
 
 ThriftSimpleServer* 
 thrift_simple_server_new (ThriftProcessor* processor, 
-                          ThriftServerTransport* server_transport /*,
+                          ThriftServerTransport* server_transport,
                           ThriftTransportFactory* transport_factory,
-                          ThriftProtocolFactory* protocol_factory*/)
+                          ThriftProtocolFactory* protocol_factory)
 {
   ThriftSimpleServer* server;
 
@@ -159,14 +159,14 @@ thrift_simple_server_new (ThriftProcessor* processor,
                          processor,
                          "server_transport",
                          server_transport,
-                         /*"input_transport_factory",
+                         "input_transport_factory",
                          transport_factory,
                          "output_transport_factory",
                          transport_factory,
                          "input_protocol_factory",
                          protocol_factory,
                          "output_protocol_factory",
-                         protocol_factory*/
+                         protocol_factory,
                          NULL);
   
   return server;

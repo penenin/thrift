@@ -53,3 +53,14 @@ thrift_buffered_transport_factory_class_init (ThriftBufferedTransportFactoryClas
     klass->get_transport =
     thrift_buffered_transport_factory_get_transport;
 }
+
+ThriftBufferedTransportFactory* 
+thrift_buffered_transport_factory_new (void)
+{
+  ThriftBufferedTransportFactory* factory;
+
+  factory = g_object_new (THRIFT_TYPE_BUFFERED_TRANSPORT_FACTORY,
+                          NULL);
+  
+  return factory;
+}
