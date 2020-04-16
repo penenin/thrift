@@ -64,6 +64,8 @@ struct _ThriftCompactProtocolFactoryClass
 
 /* used by THRIFT_TYPE_COMPACT_PROTOCOL_FACTORY */
 GType thrift_compact_protocol_factory_get_type (void);
+ThriftCompactProtocolFactory* thrift_compact_protocol_factory_new (void);
+ThriftCompactProtocolFactory* thrift_compact_protocol_factory_new_with_limits (guint32 string_limit, guint32 container_limit);
 
 G_END_DECLS
 

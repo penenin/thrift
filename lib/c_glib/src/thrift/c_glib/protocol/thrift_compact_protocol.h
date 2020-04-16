@@ -101,6 +101,7 @@ struct _ThriftCompactProtocolClass
 
 /* used by THRIFT_TYPE_COMPACT_PROTOCOL */
 GType thrift_compact_protocol_get_type (void);
+ThriftCompactProtocol* thrift_compact_protocol_new (ThriftTransport* transport);
 
 G_END_DECLS
 

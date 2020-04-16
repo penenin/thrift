@@ -388,3 +388,33 @@ thrift_buffered_transport_class_init (ThriftBufferedTransportClass *cls)
   ttc->write_end = thrift_buffered_transport_write_end;
   ttc->flush = thrift_buffered_transport_flush;
 }
+
+ThriftBufferedTransport* 
+thrift_buffered_transport_new (ThriftTransport* transport)
+{
+  ThriftBufferedTransport* buffered;
+
+  buffered = g_object_new (THRIFT_TYPE_BUFFERED_TRANSPORT,
+                            "transport",
+                            transport,
+                            NULL);
+  
+  return buffered;
+}
+
+ThriftBufferedTransport* 
+thrift_buffered_transport_new_with_size (ThriftTransport* transport, gint buf_size)
+{
+  ThriftBufferedTransport* buffered;
+
+  buffered = g_object_new (THRIFT_TYPE_BUFFERED_TRANSPORT,
+                            "transport",
+                            transport,
+                            "r_buf_size",
+                            buf_size,
+                            "w_buf_size",
+                            buf_size,
+                            NULL);
+  
+  return buffered;
+}

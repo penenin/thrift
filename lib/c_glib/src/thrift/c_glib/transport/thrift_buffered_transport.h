@@ -71,6 +71,8 @@ struct _ThriftBufferedTransportClass
 
 /* used by THRIFT_TYPE_BUFFERED_TRANSPORT */
 GType thrift_buffered_transport_get_type (void);
+ThriftBufferedTransport* thrift_buffered_transport_new (ThriftTransport* transport);
+ThriftBufferedTransport* thrift_buffered_transport_new_with_size (ThriftTransport* transport, gint buf_size);
 
 G_END_DECLS
 

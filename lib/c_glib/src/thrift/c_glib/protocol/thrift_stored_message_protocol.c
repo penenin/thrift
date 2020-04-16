@@ -190,3 +190,20 @@ thrift_stored_message_protocol_class_init (ThriftStoredMessageProtocolClass *kla
 				     PROP_THRIFT_STORED_MESSAGE_PROTOCOL_END,
 				     thrift_stored_message_protocol_obj_properties);
 }
+
+ThriftStoredMessageProtocol* 
+thrift_stored_message_protocol_new (const gchar* name, gint type, gint seqid)
+{
+  ThriftStoredMessageProtocol* protocol;
+
+  protocol = g_object_new (THRIFT_TYPE_STORED_MESSAGE_PROTOCOL,
+                           "name",
+                           name,
+                           "type",
+                           type,
+                           "seqid",
+                           seqid,
+                           NULL);
+  
+  return protocol;
+}

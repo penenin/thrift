@@ -138,3 +138,29 @@ thrift_compact_protocol_factory_init (ThriftCompactProtocolFactory *factory)
 {
   THRIFT_UNUSED_VAR (factory);
 }
+
+ThriftCompactProtocolFactory* 
+thrift_compact_protocol_factory_new (void)
+{
+  ThriftCompactProtocolFactory* factory;
+
+  factory = g_object_new (THRIFT_TYPE_COMPACT_PROTOCOL_FACTORY,
+                          NULL);
+  
+  return factory;
+}
+
+ThriftCompactProtocolFactory* 
+thrift_compact_protocol_factory_new_with_limits (guint32 string_limit, guint32 container_limit)
+{
+  ThriftCompactProtocolFactory* factory;
+
+  factory = g_object_new (THRIFT_TYPE_COMPACT_PROTOCOL_FACTORY,
+                          "string_limit",
+                          string_limit,
+                          "container_limit",
+                          container_limit,
+                          NULL);
+  
+  return factory;
+}

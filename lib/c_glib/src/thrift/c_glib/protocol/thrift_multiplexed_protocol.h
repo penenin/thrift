@@ -70,6 +70,7 @@ struct _ThriftMultiplexedProtocolClass
 
 /* used by THRIFT_TYPE_MULTIPLEXED_PROTOCOL */
 GType thrift_multiplexed_protocol_get_type (void);
+ThriftMultiplexedProtocol* thrift_multiplexed_protocol_new (ThriftProtocol* protocol, const gchar* service_name);
 
 G_END_DECLS
 

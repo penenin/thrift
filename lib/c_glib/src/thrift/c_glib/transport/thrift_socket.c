@@ -441,22 +441,3 @@ thrift_socket_new (const gchar* hostname,
   
   return socket;
 }
-
-ThriftSocket*
-thrift_socket_new_with_path (const gchar* hostname,
-                   guint port,
-                   const gchar* path)
-{
-  ThriftSocket* socket;
-
-  socket = g_object_new (THRIFT_TYPE_SOCKET,
-                         "hostname",
-                         hostname,
-                         "port",
-                         port,
-                         "path",
-                         path,
-                         NULL);
-  
-  return socket;
-}

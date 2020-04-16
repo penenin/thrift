@@ -66,6 +66,7 @@ struct _ThriftProtocolDecoratorClass
 
 /* used by THRIFT_TYPE_PROTOCOL_DECORATOR */
 GType thrift_protocol_decorator_get_type (void);
+ThriftProtocolDecorator* thrift_protocol_decorator_new (ThriftProtocol* protocol);
 
 G_END_DECLS
 

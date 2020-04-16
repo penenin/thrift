@@ -621,3 +621,16 @@ thrift_protocol_decorator_class_init (ThriftProtocolDecoratorClass *klass)
   cls->read_string = thrift_protocol_decorator_read_string;
   cls->read_binary = thrift_protocol_decorator_read_binary;
 }
+
+ThriftProtocolDecorator* 
+thrift_protocol_decorator_new (ThriftProtocol* protocol)
+{
+  ThriftProtocolDecorator* decorator;
+
+  decorator = g_object_new (THRIFT_TYPE_PROTOCOL_DECORATOR,
+                           "protocol",
+                           protocol,
+                           NULL);
+  
+  return decorator;
+}

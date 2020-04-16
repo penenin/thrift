@@ -71,6 +71,7 @@ struct _ThriftFramedTransportClass
 
 /* used by THRIFT_TYPE_FRAMED_TRANSPORT */
 GType thrift_framed_transport_get_type (void);
+ThriftFramedTransport* thrift_framed_transport_new (ThriftTransport* transport);
 
 G_END_DECLS
 

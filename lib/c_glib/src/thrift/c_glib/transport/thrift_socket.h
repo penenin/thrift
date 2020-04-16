@@ -68,7 +68,6 @@ struct _ThriftSocketClass
 /* used by THRIFT_TYPE_SOCKET */
 GType thrift_socket_get_type (void);
 ThriftSocket* thrift_socket_new (const gchar* hostname, guint port);
-ThriftSocket* thrift_socket_new_with_path (const gchar* hostname, guint port, const gchar* path);
 
 G_END_DECLS
 

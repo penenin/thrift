@@ -800,4 +800,3 @@ thrift_ssl_socket_context_initialize(ThriftSSLSocketProtocol ssl_protocol, GErro
 
   return context;
 }
-

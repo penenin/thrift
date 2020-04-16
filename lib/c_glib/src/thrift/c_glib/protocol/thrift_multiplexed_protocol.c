@@ -156,3 +156,18 @@ thrift_multiplexed_protocol_class_init (ThriftMultiplexedProtocolClass *klass)
       PROP_THRIFT_MULTIPLEXED_PROTOCOL_END,
       thrift_multiplexed_protocol_obj_properties);
 }
+
+ThriftMultiplexedProtocol* 
+thrift_multiplexed_protocol_new (ThriftProtocol* protocol, const gchar* service_name)
+{
+  ThriftMultiplexedProtocol* multiplexed;
+
+  multiplexed = g_object_new (THRIFT_TYPE_MULTIPLEXED_PROTOCOL,
+                           "protocol",
+                           protocol,
+                           "service-name",
+                           service_name,
+                           NULL);
+  
+  return multiplexed;
+}

@@ -263,3 +263,16 @@ thrift_fd_transport_class_init (ThriftFDTransportClass *cls)
   ttc->write_end = thrift_fd_transport_write_end;
   ttc->flush = thrift_fd_transport_flush;
 }
+
+ThriftFDTransport* 
+thrift_fd_transport_new (gint fd)
+{
+  ThriftFDTransport* transport;
+
+  transport = g_object_new (THRIFT_TYPE_FD_TRANSPORT,
+                            "fd",
+                            fd,
+                            NULL);
+  
+  return transport;
+}

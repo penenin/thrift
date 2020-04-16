@@ -64,9 +64,14 @@ struct _ThriftSimpleServerClass
 /* used by THRIFT_TYPE_SIMPLE_SERVER */
 GType thrift_simple_server_get_type (void);
 ThriftSimpleServer* thrift_simple_server_new (ThriftProcessor* processor, 
-                                              ThriftServerTransport* server_transport,
-                                              ThriftTransportFactory* transport_factory,
-                                              ThriftProtocolFactory* protocol_factory);
+                                              ThriftServerTransport* server_transport);
+ThriftSimpleServer* thrift_simple_server_new_with_factory (ThriftProcessor* processor, 
+                                                           ThriftServerTransport* server_transport,
+                                                           ThriftTransportFactory* transport_factory);
+ThriftSimpleServer* thrift_simple_server_new_with_factories (ThriftProcessor* processor, 
+                                                             ThriftServerTransport* server_transport,
+                                                             ThriftTransportFactory* transport_factory,
+                                                             ThriftProtocolFactory* protocol_factory);
 
 G_END_DECLS
 

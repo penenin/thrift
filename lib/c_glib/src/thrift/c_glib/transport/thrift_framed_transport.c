@@ -381,3 +381,16 @@ thrift_framed_transport_class_init (ThriftFramedTransportClass *cls)
   ttc->write_end = thrift_framed_transport_write_end;
   ttc->flush = thrift_framed_transport_flush;
 }
+
+ThriftFramedTransport* 
+thrift_framed_transport_new (ThriftTransport* transport)
+{
+  ThriftFramedTransport* framed;
+
+  framed = g_object_new (THRIFT_TYPE_FRAMED_TRANSPORT,
+                         "transport",
+                         transport,
+                         NULL);
+  
+  return framed;
+}

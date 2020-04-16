@@ -1607,3 +1607,16 @@ thrift_compact_protocol_init (ThriftCompactProtocol *self)
 {
   g_queue_init (&(self->_last_field));
 }
+
+ThriftCompactProtocol* 
+thrift_compact_protocol_new (ThriftTransport* transport)
+{
+  ThriftCompactProtocol* protocol;
+
+  protocol = g_object_new (THRIFT_TYPE_COMPACT_PROTOCOL,
+                           "transport",
+                           transport,
+                           NULL);
+  
+  return protocol;
+}

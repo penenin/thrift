@@ -51,6 +51,7 @@ struct _ThriftBinaryProtocolFactoryClass
 /* used by THRIFT_TYPE_BINARY_PROTOCOL_FACTORY */
 GType thrift_binary_protocol_factory_get_type (void);
 ThriftBinaryProtocolFactory* thrift_binary_protocol_factory_new (void);
+
 G_END_DECLS
 
 #endif /* _THRIFT_BINARY_PROTOCOL_FACTORY_H */

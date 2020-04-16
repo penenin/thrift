@@ -66,6 +66,8 @@ struct _ThriftMemoryBufferClass
 
 /* used by THRIFT_TYPE_MEMORY_BUFFER */
 GType thrift_memory_buffer_get_type (void);
+ThriftMemoryBuffer* thrift_memory_buffer_new (void);
+ThriftMemoryBuffer* thrift_memory_buffer_new_with_buffer (GByteArray* buf);
 
 G_END_DECLS
 

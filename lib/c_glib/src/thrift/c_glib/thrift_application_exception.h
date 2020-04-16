@@ -82,6 +82,8 @@ GQuark thrift_application_exception_error_quark (void);
 #define THRIFT_APPLICATION_EXCEPTION_ERROR (thrift_application_exception_error_quark ())
 
 ThriftApplicationException* thrift_application_exception_new (void);
+ThriftApplicationException* thrift_application_exception_with_type (gint type);
+ThriftApplicationException* thrift_application_exception_with_type_and_message (gint type, const gchar* message);
 
 G_END_DECLS
 

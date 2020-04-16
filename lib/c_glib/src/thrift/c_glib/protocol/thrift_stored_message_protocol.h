@@ -72,6 +72,7 @@ struct _ThriftStoredMessageProtocolClass
 
 /* used by THRIFT_TYPE_STORED_MESSAGE_PROTOCOL */
 GType thrift_stored_message_protocol_get_type (void);
+ThriftStoredMessageProtocol* thrift_stored_message_protocol_new (const gchar* name, gint type, gint seqid);
 
 G_END_DECLS
 

@@ -283,3 +283,27 @@ thrift_memory_buffer_class_init (ThriftMemoryBufferClass *cls)
   ttc->write_end = thrift_memory_buffer_write_end;
   ttc->flush = thrift_memory_buffer_flush;
 }
+
+ThriftMemoryBuffer* 
+thrift_memory_buffer_new (void)
+{
+  ThriftMemoryBuffer* buffer;
+
+  buffer = g_object_new (THRIFT_TYPE_MEMORY_BUFFER,
+                         NULL);
+  
+  return buffer;
+}
+
+ThriftMemoryBuffer* 
+thrift_memory_buffer_new_with_buffer (GByteArray* buf)
+{
+  ThriftMemoryBuffer* buffer;
+
+  buffer = g_object_new (THRIFT_TYPE_MEMORY_BUFFER,
+                         "buf",
+                         buf,
+                         NULL);
+  
+  return buffer;
+}

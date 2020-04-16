@@ -68,6 +68,7 @@ struct _ThriftFDTransportClass
 
 /* used by THRIFT_TYPE_FD_TRANSPORT */
 GType thrift_fd_transport_get_type (void);
+ThriftFDTransport* thrift_fd_transport_new (gint fd);
 
 G_END_DECLS
 

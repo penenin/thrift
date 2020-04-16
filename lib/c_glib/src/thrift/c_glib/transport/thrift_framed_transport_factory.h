@@ -75,6 +75,7 @@ struct _ThriftFramedTransportFactoryClass
 
 /* used by THRIFT_TYPE_FRAMED_TRANSPORT_FACTORY */
 GType thrift_framed_transport_factory_get_type (void);
+ThriftFramedTransportFactory* thrift_framed_transport_factory_new (void);
 
 /* virtual public methods */
 ThriftTransport *

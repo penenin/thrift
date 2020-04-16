@@ -53,3 +53,14 @@ thrift_framed_transport_factory_class_init (ThriftFramedTransportFactoryClass *k
     klass->get_transport =
     thrift_framed_transport_factory_get_transport;
 }
+
+ThriftFramedTransportFactory* 
+thrift_framed_transport_factory_new (void)
+{
+  ThriftFramedTransportFactory* factory;
+
+  factory = g_object_new (THRIFT_TYPE_FRAMED_TRANSPORT_FACTORY,
+                          NULL);
+  
+  return factory;
+}

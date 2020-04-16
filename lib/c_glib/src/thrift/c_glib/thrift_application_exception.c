@@ -286,3 +286,31 @@ thrift_application_exception_new (void)
   
   return exception;
 }
+
+ThriftApplicationException* 
+thrift_application_exception_with_type (gint type)
+{
+  ThriftApplicationException* exception;
+
+  exception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                           "type",
+                           type,
+                           NULL);
+  
+  return exception;
+}
+
+ThriftApplicationException* 
+thrift_application_exception_with_type_and_message (gint type, const gchar* message)
+{
+  ThriftApplicationException* exception;
+
+  exception = g_object_new (THRIFT_TYPE_APPLICATION_EXCEPTION,
+                           "type",
+                           type,
+                           "message",
+                           message,
+                           NULL);
+  
+  return exception;
+}

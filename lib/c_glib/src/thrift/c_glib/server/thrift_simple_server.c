@@ -148,6 +148,43 @@ thrift_simple_server_class_init (ThriftSimpleServerClass *class)
 
 ThriftSimpleServer* 
 thrift_simple_server_new (ThriftProcessor* processor, 
+                          ThriftServerTransport* server_transport)
+{
+  ThriftSimpleServer* server;
+
+  server = g_object_new (THRIFT_TYPE_SIMPLE_SERVER,
+                         "processor",
+                         processor,
+                         "server_transport",
+                         server_transport,
+                         NULL);
+  
+  return server;
+}
+
+ThriftSimpleServer* 
+thrift_simple_server_new_with_factory (ThriftProcessor* processor, 
+                          ThriftServerTransport* server_transport,
+                          ThriftTransportFactory* transport_factory)
+{
+  ThriftSimpleServer* server;
+
+  server = g_object_new (THRIFT_TYPE_SIMPLE_SERVER,
+                         "processor",
+                         processor,
+                         "server_transport",
+                         server_transport,
+                         "input_transport_factory",
+                         transport_factory,
+                         "output_transport_factory",
+                         transport_factory,
+                         NULL);
+  
+  return server;
+}
+
+ThriftSimpleServer* 
+thrift_simple_server_new_with_factories (ThriftProcessor* processor, 
                           ThriftServerTransport* server_transport,
                           ThriftTransportFactory* transport_factory,
                           ThriftProtocolFactory* protocol_factory)
