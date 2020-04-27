@@ -59,10 +59,10 @@ public class CalculatorHandler : ICalculator, SharedService
                 }
         }
 
-        SharedStruct entry = new SharedStruct();
+        /*SharedStruct entry = new SharedStruct();
         entry.Key = logid;
         entry.Value = val.to_string();
-        log[logid] = entry;
+        log[logid] = entry;*/
 
         return val;
     }
