@@ -1667,7 +1667,7 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
                 out << indent() << "protocol.";
                 if (type->is_binary())
                 {
-                    out << "read_binary(buf, len);";
+                    out << "read_binary(out buf, out len);";
                 }
                 else
                 {
@@ -1675,22 +1675,28 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
                 }
                 break;
             case t_base_type::TYPE_BOOL:
-                out << indent() << name << " = protocol.read_bool(out value);";
+                out << indent() << "protocol.read_bool(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             case t_base_type::TYPE_I8:
-                out << indent() << name << " = protocol.read_byte(out value);";
+                out << indent() << "protocol.read_byte(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             case t_base_type::TYPE_I16:
-                out << indent() << name << " = protocol.read_i16(out value);";
+                out << indent() << "protocol.read_i16(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             case t_base_type::TYPE_I32:
-                out << indent() << name << " = protocol.read_i32(out value);";
+                out << indent() << "protocol.read_i32(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             case t_base_type::TYPE_I64:
-                out << indent() << name << " = protocol.read_i64(out value);";
+                out << indent() << "protocol.read_i64(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             case t_base_type::TYPE_DOUBLE:
-                out << indent() << name << " = protocol.read_double(out value);";
+                out << indent() << "protocol.read_double(out value);" << endl
+                    << indent() << name << " = value;";
                 break;
             default:
                 throw "compiler error: no Vala name for base type " + t_base_type::t_base_name(tbase);
@@ -1698,7 +1704,8 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
         }
         else if (type->is_enum())
         {
-            out << indent() << name << " = (" << type_name(type) << ")protocol.read_i32(out value);";
+            out << indent() << "protocol.read_i32(out value);" << endl
+                << indent() << name << " = (" << type_name(type) << ")value;";
         }
         out << endl;
     }
