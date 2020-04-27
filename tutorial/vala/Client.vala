@@ -10,10 +10,10 @@ void main()
     transport.open();
 
     client.ping();
-    stdout.printf("ping()\n");
+    stdout.printf("ping()\n-\n");
 
     int sum = client.add(1, 1);
-    stdout.printf(@"1+1=$sum\n");
+    stdout.printf(@"1+1=$sum\n-\n");
 
     Work work = new Work();
 
@@ -22,20 +22,14 @@ void main()
     work.Num2 = 0;
 
     InvalidOperation io;
-    try
+    int quotient = client.calculate(1, work, out io);
+    if (io != null)
     {
-        int quotient = client.calculate(1, work, out io);
+        stderr.printf(@"Invalid operation: $(io.Why)\n-\n");
     }
-    catch (Error e)
+    else
     {
-        if (io != null)
-        {
-            stderr.printf(@"Invalid operation: $(io.Why)\n");
-        }
-        else
-        {
-            stdout.printf("Whoa we can divide by 0\n");
-        }
+        stdout.printf("Whoa we can divide by 0\n-\n");
     }
 
     work.Op = Operation.SUBTRACT;
@@ -45,15 +39,15 @@ void main()
     int diff = client.calculate(1, work, out io);
     if (io != null)
     {
-        stderr.printf(@"Invalid operation: $(io.Why)\n");
+        stderr.printf(@"Invalid operation: $(io.Why)\n-\n");
     }
     else
     {
-        stdout.printf(@"15-10=$diff\n");
+        stdout.printf(@"15-10=$diff\n-\n");
     }
 
     SharedStruct log = client.get_struct(1);
-    stdout.printf(@"Check log: $(log.Value)\n");
+    stdout.printf(@"Check log: $(log.Value)\n-\n");
 
     transport.close();
 }

@@ -1283,7 +1283,8 @@ void t_vala_generator::generate_service_client(ostream& out, t_service* tservice
                 out << indent() << "if (result.__isset." << name << ")" << endl
                     << indent() << "{" << endl;
                 indent_up();
-                out << indent() << name << " = " << "result." << prop_name(*x_iter) << ";" << endl;
+                out << indent() << name << " = " << "result." << prop_name(*x_iter) << ";" << endl
+                    << indent() << "return result.Success;" << endl;
                 indent_down();
                 out << indent() << "}" << endl
                     << indent() << "else" << endl
@@ -1668,10 +1669,12 @@ void t_vala_generator::generate_deserialize_field(ostream& out, t_field* tfield,
                 if (type->is_binary())
                 {
                     out << "read_binary(out buf, out len);";
+                    // TODO: ???
                 }
                 else
                 {
-                    out << "read_string(out str);";
+                    out << "read_string(out str);" << endl
+                        << indent() << name << " = str;";
                 }
                 break;
             case t_base_type::TYPE_BOOL:
