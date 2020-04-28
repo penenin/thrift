@@ -1024,14 +1024,14 @@ void t_vala_generator::generate_vala_struct_result_writer(ostream& out, t_struct
 
     string name = tstruct->get_name();
     const vector<t_field*>& fields = tstruct->get_sorted_members();
-    vector<t_field*>::const_iterator f_iter;
+    vector<t_field*>::const_reverse_iterator f_iter;
 
     out << indent() << "protocol.write_struct_begin(\"" << name << "\");" << endl;
 
     if (fields.size() > 0)
     {
         bool first = true;
-        for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter)
+        for (f_iter = fields.rbegin(); f_iter != fields.rend(); ++f_iter)
         {
             if (first)
             {
@@ -1043,17 +1043,18 @@ void t_vala_generator::generate_vala_struct_result_writer(ostream& out, t_struct
                 out << indent() << "else if";
             }
 
-            out << "(this.__isset." << normalize_name((*f_iter)->get_name()) << ")" << endl
-                << indent() << "{" << endl;
-            indent_up();
-
+            out << "(this.__isset." << normalize_name((*f_iter)->get_name());
             bool null_allowed = type_can_be_null((*f_iter)->get_type());
             if (null_allowed)
             {
-                out << indent() << "if (" << prop_name(*f_iter) << " != null)" << endl
-                    << indent() << "{" << endl;
-                indent_up();
+                out << " && " << prop_name(*f_iter) << " != null)" << endl;
             }
+            else
+            {
+                out << ")" << endl;
+            }
+            out << indent() << "{" << endl;
+            indent_up();
 
             out << indent() << "protocol.write_field_begin(\"" << prop_name(*f_iter) << "\", " << type_to_enum((*f_iter)->get_type()) 
                 << ", " << (*f_iter)->get_key() << ");" << endl;
@@ -1061,12 +1062,6 @@ void t_vala_generator::generate_vala_struct_result_writer(ostream& out, t_struct
             generate_serialize_field(out, *f_iter);
 
             out << indent() << "protocol.write_field_end();" << endl;
-
-            if (null_allowed)
-            {
-                indent_down();
-                out << indent() << "}" << endl;
-            }
 
             indent_down();
             out << indent() << "}" << endl;
