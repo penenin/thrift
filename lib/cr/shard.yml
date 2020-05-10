@@ -1,0 +1,9 @@
+name: thrift
+version: 0.14.0
+
+authors:
+  - James Lacey <jamlacey@gmail.com>
+
+crystal: 0.34.0
+
+license: Apache-2.0
