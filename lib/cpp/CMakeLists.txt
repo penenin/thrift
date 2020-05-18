@@ -57,6 +57,8 @@ set( thriftcpp_SOURCES
    src/thrift/transport/TServerSocket.cpp
    src/thrift/transport/TTransportUtils.cpp
    src/thrift/transport/TBufferTransports.cpp
+   src/thrift/transport/TWebSocketServer.h
+   src/thrift/transport/TWebSocketServer.cpp
    src/thrift/server/TConnectedClient.cpp
    src/thrift/server/TServerFramework.cpp
    src/thrift/server/TSimpleServer.cpp
@@ -125,10 +127,16 @@ set( thriftcpp_threads_SOURCES
 set( thriftcppnb_SOURCES
     src/thrift/server/TNonblockingServer.cpp
     src/thrift/transport/TNonblockingServerSocket.cpp
-    src/thrift/transport/TNonblockingSSLServerSocket.cpp
     src/thrift/async/TEvhttpServer.cpp
     src/thrift/async/TEvhttpClientChannel.cpp
 )
+
+# If OpenSSL is not found or disabled just ignore the OpenSSL stuff
+if(OPENSSL_FOUND AND WITH_OPENSSL)
+    list( APPEND thriftcppnb_SOURCES
+    src/thrift/transport/TNonblockingSSLServerSocket.cpp
+    )
+endif()
 
 # Thrift zlib transport
 set( thriftcppz_SOURCES

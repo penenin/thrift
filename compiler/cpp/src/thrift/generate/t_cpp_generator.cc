@@ -68,6 +68,7 @@ public:
     gen_moveable_ = false;
     gen_no_ostream_operators_ = false;
     gen_no_skeleton_ = false;
+    has_members_ = false;
 
     for( iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
       if( iter->first.compare("pure_enums") == 0) {
@@ -358,6 +359,11 @@ private:
   bool gen_no_skeleton_;
 
   /**
+   * True if thrift has member(s)
+   */
+  bool has_members_;
+
+  /**
    * Strings for namespace, computed once up front then used directly
    */
 
@@ -505,6 +511,12 @@ void t_cpp_generator::close_generator() {
   f_types_.close();
   f_types_impl_.close();
   f_types_tcc_.close();
+
+  string f_types_impl_name = get_out_dir() + program_name_ + "_types.cpp";
+
+  if (!has_members_) {
+    remove(f_types_impl_name.c_str());
+  }
 }
 
 /**
@@ -693,55 +705,57 @@ void t_cpp_generator::generate_enum_to_string_helper_function(std::ostream& out,
 void t_cpp_generator::generate_consts(std::vector<t_const*> consts) {
   string f_consts_name = get_out_dir() + program_name_ + "_constants.h";
   ofstream_with_content_based_conditional_update f_consts;
-  f_consts.open(f_consts_name);
+  if (consts.size() > 0) {
+    f_consts.open(f_consts_name);
 
-  string f_consts_impl_name = get_out_dir() + program_name_ + "_constants.cpp";
-  ofstream_with_content_based_conditional_update f_consts_impl;
-  f_consts_impl.open(f_consts_impl_name);
+    string f_consts_impl_name = get_out_dir() + program_name_ + "_constants.cpp";
+    ofstream_with_content_based_conditional_update f_consts_impl;
+    f_consts_impl.open(f_consts_impl_name);
 
-  // Print header
-  f_consts << autogen_comment();
-  f_consts_impl << autogen_comment();
+    // Print header
+    f_consts << autogen_comment();
+    f_consts_impl << autogen_comment();
 
-  // Start ifndef
-  f_consts << "#ifndef " << program_name_ << "_CONSTANTS_H" << endl << "#define " << program_name_
-           << "_CONSTANTS_H" << endl << endl << "#include \"" << get_include_prefix(*get_program())
-           << program_name_ << "_types.h\"" << endl << endl << ns_open_ << endl << endl;
+    // Start ifndef
+    f_consts << "#ifndef " << program_name_ << "_CONSTANTS_H" << endl << "#define " << program_name_
+             << "_CONSTANTS_H" << endl << endl << "#include \"" << get_include_prefix(*get_program())
+             << program_name_ << "_types.h\"" << endl << endl << ns_open_ << endl << endl;
 
-  f_consts_impl << "#include \"" << get_include_prefix(*get_program()) << program_name_
-                << "_constants.h\"" << endl << endl << ns_open_ << endl << endl;
+    f_consts_impl << "#include \"" << get_include_prefix(*get_program()) << program_name_
+                  << "_constants.h\"" << endl << endl << ns_open_ << endl << endl;
 
-  f_consts << "class " << program_name_ << "Constants {" << endl << " public:" << endl << "  "
-           << program_name_ << "Constants();" << endl << endl;
-  indent_up();
-  vector<t_const*>::iterator c_iter;
-  for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
-    string name = (*c_iter)->get_name();
-    t_type* type = (*c_iter)->get_type();
-    f_consts << indent() << type_name(type) << " " << name << ";" << endl;
+    f_consts << "class " << program_name_ << "Constants {" << endl << " public:" << endl << "  "
+             << program_name_ << "Constants();" << endl << endl;
+    indent_up();
+    vector<t_const*>::iterator c_iter;
+    for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
+      string name = (*c_iter)->get_name();
+      t_type* type = (*c_iter)->get_type();
+      f_consts << indent() << type_name(type) << " " << name << ";" << endl;
+    }
+    indent_down();
+    f_consts << "};" << endl;
+
+    f_consts_impl << "const " << program_name_ << "Constants g_" << program_name_ << "_constants;"
+                  << endl << endl << program_name_ << "Constants::" << program_name_
+                  << "Constants() {" << endl;
+    indent_up();
+    for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
+      print_const_value(f_consts_impl,
+                        (*c_iter)->get_name(),
+                        (*c_iter)->get_type(),
+                        (*c_iter)->get_value());
+    }
+    indent_down();
+    indent(f_consts_impl) << "}" << endl;
+
+    f_consts << endl << "extern const " << program_name_ << "Constants g_" << program_name_
+             << "_constants;" << endl << endl << ns_close_ << endl << endl << "#endif" << endl;
+    f_consts.close();
+
+    f_consts_impl << endl << ns_close_ << endl << endl;
+    f_consts_impl.close();
   }
-  indent_down();
-  f_consts << "};" << endl;
-
-  f_consts_impl << "const " << program_name_ << "Constants g_" << program_name_ << "_constants;"
-                << endl << endl << program_name_ << "Constants::" << program_name_
-                << "Constants() {" << endl;
-  indent_up();
-  for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
-    print_const_value(f_consts_impl,
-                      (*c_iter)->get_name(),
-                      (*c_iter)->get_type(),
-                      (*c_iter)->get_value());
-  }
-  indent_down();
-  indent(f_consts_impl) << "}" << endl;
-
-  f_consts << endl << "extern const " << program_name_ << "Constants g_" << program_name_
-           << "_constants;" << endl << endl << ns_close_ << endl << endl << "#endif" << endl;
-  f_consts.close();
-
-  f_consts_impl << endl << ns_close_ << endl << endl;
-  f_consts_impl.close();
 }
 
 /**
@@ -904,6 +918,8 @@ void t_cpp_generator::generate_cpp_struct(t_struct* tstruct, bool is_exception) 
   if (is_exception) {
     generate_exception_what_method(f_types_impl_, tstruct);
   }
+
+  has_members_ = true;
 }
 
 void t_cpp_generator::generate_copy_constructor(ostream& out,
@@ -1265,8 +1281,13 @@ void t_cpp_generator::generate_struct_declaration(ostream& out,
 
   if (swap) {
     // Generate a namespace-scope swap() function
-    out << indent() << "void swap(" << tstruct->get_name() << " &a, " << tstruct->get_name()
-        << " &b);" << endl << endl;
+    if (tstruct->get_name() == "a" || tstruct->get_name() == "b") {
+      out << indent() << "void swap(" << tstruct->get_name() << " &a1, " << tstruct->get_name()
+          << " &a2);" << endl << endl;
+    } else {
+       out << indent() << "void swap(" << tstruct->get_name() << " &a, " << tstruct->get_name()
+           << " &b);" << endl << endl;
+    }
   }
 
   if (is_user_struct) {
@@ -1585,8 +1606,14 @@ void t_cpp_generator::generate_struct_result_writer(ostream& out,
  * @param tstruct The struct
  */
 void t_cpp_generator::generate_struct_swap(ostream& out, t_struct* tstruct) {
-  out << indent() << "void swap(" << tstruct->get_name() << " &a, " << tstruct->get_name()
-      << " &b) {" << endl;
+  if (tstruct->get_name() == "a" || tstruct->get_name() == "b") {
+    out << indent() << "void swap(" << tstruct->get_name() << " &a1, " << tstruct->get_name()
+        << " &a2) {" << endl; 
+  } else {
+    out << indent() << "void swap(" << tstruct->get_name() << " &a, " << tstruct->get_name()
+        << " &b) {" << endl;
+  }
+
   indent_up();
 
   // Let argument-dependent name lookup find the correct swap() function to
@@ -1601,18 +1628,32 @@ void t_cpp_generator::generate_struct_swap(ostream& out, t_struct* tstruct) {
       has_nonrequired_fields = true;
     }
 
-    out << indent() << "swap(a." << tfield->get_name() << ", b." << tfield->get_name() << ");"
-        << endl;
+    if (tstruct->get_name() == "a" || tstruct->get_name() == "b") {
+      out << indent() << "swap(a1." << tfield->get_name() << ", a2." << tfield->get_name() << ");"
+          << endl;
+    } else {
+      out << indent() << "swap(a." << tfield->get_name() << ", b." << tfield->get_name() << ");"
+          << endl;
+    }
   }
 
   if (has_nonrequired_fields) {
-    out << indent() << "swap(a.__isset, b.__isset);" << endl;
+    if (tstruct->get_name() == "a" || tstruct->get_name() == "b") {
+      out << indent() << "swap(a1.__isset, a2.__isset);" << endl; 
+    } else {
+      out << indent() << "swap(a.__isset, b.__isset);" << endl;
+    }
   }
 
   // handle empty structs
   if (fields.size() == 0) {
-    out << indent() << "(void) a;" << endl;
-    out << indent() << "(void) b;" << endl;
+    if (tstruct->get_name() == "a" || tstruct->get_name() == "b") {
+      out << indent() << "(void) a1;" << endl;
+      out << indent() << "(void) a2;" << endl;
+    } else {
+      out << indent() << "(void) a;" << endl;
+      out << indent() << "(void) b;" << endl;
+    }
   }
 
   scope_down(out);
@@ -2158,7 +2199,7 @@ void t_cpp_generator::generate_service_async_skeleton(t_service* tservice) {
              << "public " << svcname << "CobSvIf {" << endl << " public:" << endl;
   indent_up();
   f_skeleton << indent() << svcname << "AsyncHandler() {" << endl << indent()
-             << "  syncHandler_ = std::auto_ptr<" << svcname << "Handler>(new " << svcname
+             << "  syncHandler_ = std::unique_ptr<" << svcname << "Handler>(new " << svcname
              << "Handler);" << endl << indent() << "  // Your initialization goes here" << endl
              << indent() << "}" << endl;
   f_skeleton << indent() << "virtual ~" << service_name_ << "AsyncHandler();" << endl;
@@ -2182,7 +2223,7 @@ void t_cpp_generator::generate_service_async_skeleton(t_service* tservice) {
 
     scope_down(f_skeleton);
   }
-  f_skeleton << endl << " protected:" << endl << indent() << "std::auto_ptr<" << svcname
+  f_skeleton << endl << " protected:" << endl << indent() << "std::unique_ptr<" << svcname
              << "Handler> syncHandler_;" << endl;
   indent_down();
   f_skeleton << "};" << endl << endl;
