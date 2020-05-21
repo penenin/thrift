@@ -133,7 +133,6 @@ private:
 
   bool nullable_;
   bool use_libgee;
-  bool use_standard_case;
 
   map<string, int> vala_keywords;
   vector<member_mapping_scope> member_mapping_scopes;

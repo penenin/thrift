@@ -49,7 +49,6 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
 {
     (void)option_string;
     use_libgee = false;
-    use_standard_case = false;
 
     map<string, string>::const_iterator iter;
 
@@ -58,10 +57,6 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
         if (iter->first.compare("libgee") == 0)
         {
           use_libgee = true;
-        }
-        else if (iter->first.compare("standard") == 0)
-        {
-          use_standard_case = true;
         }
         else 
         {
@@ -74,11 +69,6 @@ t_vala_generator::t_vala_generator(t_program* program, const map<string, string>
 
 string t_vala_generator::convert_to_snake_case(const string& str)
 {
-    if (!use_standard_case)
-    {
-        return str;
-    }
-
     string out;
     for (auto it = str.begin(); it != str.end(); ++it) 
     {
@@ -261,7 +251,6 @@ void t_vala_generator::init_generator()
 
     pverbose("Vala options:\n");
     pverbose("- libgee ..... %s\n", (use_libgee ? "ON" : "off"));
-    pverbose("- pascal ..... %s\n", (use_standard_case ? "ON" : "off"));
 }
 
 string t_vala_generator::normalize_name(string name)
@@ -1109,22 +1098,9 @@ void t_vala_generator::generate_service(t_service* tservice)
 
 void t_vala_generator::generate_service_interface(ostream& out, t_service* tservice)
 {
-    string extends = "";
-    string extends_iface = "";
-    if (tservice->get_extends() != NULL)
-    {
-        extends = type_name(tservice->get_extends());
-        extends_iface = " : " + extends;
-    }
-    else
-    {
-        extends_iface = " : Object";
-    }
-    
-
     generate_vala_doc(out, tservice);
 
-    out << indent() << "public interface I" << convert_to_pascal_case(tservice->get_name()) << extends_iface << endl
+    out << indent() << "public interface I" << convert_to_pascal_case(tservice->get_name()) << " : Object" << endl
         << indent() << "{" << endl;
 
     indent_up();
@@ -1330,23 +1306,56 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::iterator f_iter;
 
-    out << indent() << "public class Processor : Thrift.Processor" << endl
+    // if (tservice->get_extends() == NULL)
+    // {
+    //     out << indent() << "protected static delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
+    //         << endl;
+    // }
+
+    string extends = "Thrift.Processor";
+    if (tservice->get_extends() != NULL)
+    {
+        extends = type_name(tservice->get_extends()) + ".Processor";
+    }
+
+    out << indent() << "public class Processor : " << extends << endl
         << indent() << "{" << endl;
 
     indent_up();
 
+    string container = use_libgee ? "HashMap" : "HashTable";
     string interface_name = "I" + convert_to_pascal_case(tservice->get_name());
-    out << indent() << "private " << interface_name << " service;" << endl
-        << endl
-        << indent() << "private delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
-        << endl
-        << indent() << "public Processor(" << interface_name << " service)" << endl;
+    out << indent() << "private static " << interface_name << " service;" << endl
+        << endl;
+
+    if (tservice->get_extends() == NULL)
+    {
+        out << indent() << "protected static delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
+            << endl
+            << indent() << "protected " << container << "<string, ProcessFunction> process_map = new " << container << "<string, ProcessFunction>(str_hash, str_equal);" << endl
+            << endl;
+    }
+    
+    out << indent() << "public Processor(" << interface_name << " service)" << endl;
     indent_up();
     out << indent() << "requires (service != null)" << endl;
     indent_down();
     out << indent() << "{" << endl;
     indent_up();
+
+    if (tservice->get_extends() != NULL)
+    {
+        out << indent() << "base((I" << type_name(tservice->get_extends()) << ")service);" << endl;
+    }
+
     out << indent() << "this.service = service;" << endl;
+
+    for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
+    {    
+        string function_name = (*f_iter)->get_name();
+        out << indent() << "process_map[\"" << function_name << "\"] = process_" << convert_to_snake_case(function_name) << ";" << endl;
+    }
+
     indent_down();
     out << indent() << "}" << endl
         << endl
@@ -1360,24 +1369,15 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
         << indent() << "MessageType message_type;" << endl
         << indent() << "int32 seqid;" << endl
         << indent() << "input_protocol.read_message_begin(out name, out message_type, out seqid);" << endl
-        << endl
-        << indent() << "ProcessFunction fn = null;" << endl
-        << indent() << "switch (name)" << endl
-        << indent() << "{" << endl;
-    indent_up();
+        << endl;
 
-    for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter)
-    {    
-        string function_name = (*f_iter)->get_name();
-        out << indent() << "case \"" << function_name << "\":" << endl;
-        indent_up();
-        out << indent() << "fn = process_" << convert_to_snake_case(function_name) << ";" << endl
-            << indent() << "break;" << endl;
-        indent_down();
+    string delegate_name = "ProcessFunction";
+    if (tservice->get_extends() != NULL)
+    {
+        delegate_name = extends + "." + delegate_name;
     }
 
-    indent_down();
-    out << indent() << "}" << endl
+    out << indent() << delegate_name << " fn = process_map.get(name);" << endl
         << endl
         << indent() << "if (fn == null)" << endl
         << indent() << "{" << endl;
@@ -1450,7 +1450,7 @@ void t_vala_generator::generate_function_helpers(ostream& out, t_function* tfunc
 void t_vala_generator::generate_process_function(ostream& out, t_service* tservice, t_function* tfunction)
 {
     (void)tservice;
-    out << indent() << "private void process_" << convert_to_snake_case(tfunction->get_name())
+    out << indent() << "private static void process_" << convert_to_snake_case(tfunction->get_name())
         << "(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
@@ -2188,12 +2188,8 @@ void t_vala_generator::prepare_member_name_mapping(void* scope, const vector<t_f
 }
 
 
-string t_vala_generator::convert_to_pascal_case(const string& str) {
-  if (!use_standard_case)
-  {
-      return str;
-  }
-
+string t_vala_generator::convert_to_pascal_case(const string& str) 
+{
   string out;
   bool must_capitalize = true;
   for (auto it = str.begin(); it != str.end(); ++it) 
@@ -2219,12 +2215,11 @@ string t_vala_generator::convert_to_pascal_case(const string& str) {
 }
 
 
-string t_vala_generator::prop_name(t_field* tfield, bool suppress_mapping) {
+string t_vala_generator::prop_name(t_field* tfield, bool suppress_mapping) 
+{
   string name(tfield->get_name());
   if (suppress_mapping) {
-    name[0] = toupper(name[0]);
-    if (use_standard_case)
-      name = t_vala_generator::convert_to_pascal_case(name);
+    name = t_vala_generator::convert_to_pascal_case(name);
   } else {
     name = get_mapped_member_name(name);
   }
@@ -2569,5 +2564,4 @@ THRIFT_REGISTER_GENERATOR(
     vala,
     "Vala",
     "    libgee:          Use Libgee for the collection classes.\n"
-    "    standard:        Generate names according to Vala naming convention.\n"
 )

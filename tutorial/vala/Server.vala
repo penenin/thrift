@@ -1,12 +1,12 @@
 using Thrift;
 
-public class CalculatorHandler : ICalculator, SharedService
+public class CalculatorHandler : ICalculator, ISharedService, Object
 {
     HashTable<int, SharedStruct> log;
 
     public CalculatorHandler()
     {
-        log = new HashTable<int, SharedStruct>(int_hash, int_equal);
+        log = new HashTable<int, SharedStruct>(direct_hash, direct_equal);
     }
 
     public void ping()
@@ -59,17 +59,17 @@ public class CalculatorHandler : ICalculator, SharedService
                 }
         }
 
-        /*SharedStruct entry = new SharedStruct();
+        SharedStruct entry = new SharedStruct();
         entry.Key = logid;
         entry.Value = val.to_string();
-        log[logid] = entry;*/
+        log[logid] = entry;
 
         return val;
     }
 
-    public SharedStruct getStruct(int key)
+    public SharedStruct get_struct(int32 key)
     {
-        stdout.printf("getStruct($key)\n");
+        stdout.printf(@"getStruct($key)\n");
         return log[key];
     }
 
