@@ -1103,7 +1103,7 @@ void t_vala_generator::generate_service_interface(ostream& out, t_service* tserv
     if (tservice->get_extends() != NULL)
     {
         extends = type_name(tservice->get_extends());
-        extends_iface = " : " + extends + ", I" + extends;
+        extends_iface = " : Object, I" + extends;
     }
     else
     {
