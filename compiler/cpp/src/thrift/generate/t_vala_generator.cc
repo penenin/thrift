@@ -1098,9 +1098,22 @@ void t_vala_generator::generate_service(t_service* tservice)
 
 void t_vala_generator::generate_service_interface(ostream& out, t_service* tservice)
 {
+    string extends = "";
+    string extends_iface = "";
+    if (tservice->get_extends() != NULL)
+    {
+        extends = type_name(tservice->get_extends());
+        extends_iface = " : " + extends + ", I" + extends;
+    }
+    else
+    {
+        extends_iface = " : Object";
+    }
+    
+
     generate_vala_doc(out, tservice);
 
-    out << indent() << "public interface I" << convert_to_pascal_case(tservice->get_name()) << " : Object" << endl
+    out << indent() << "public interface I" << convert_to_pascal_case(tservice->get_name()) << extends_iface << endl
         << indent() << "{" << endl;
 
     indent_up();
@@ -1325,12 +1338,12 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
 
     string container = use_libgee ? "HashMap" : "HashTable";
     string interface_name = "I" + convert_to_pascal_case(tservice->get_name());
-    out << indent() << "private static " << interface_name << " service;" << endl
+    out << indent() << "private " << interface_name << " service;" << endl
         << endl;
 
     if (tservice->get_extends() == NULL)
     {
-        out << indent() << "protected static delegate void ProcessFunction(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
+        out << indent() << "protected static delegate void ProcessFunction(" << interface_name << " service, int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error;" << endl
             << endl
             << indent() << "protected " << container << "<string, ProcessFunction> process_map = new " << container << "<string, ProcessFunction>(str_hash, str_equal);" << endl
             << endl;
@@ -1395,7 +1408,7 @@ void t_vala_generator::generate_service_server(ostream& out, t_service* tservice
     indent_down();
     out << indent() << "}" << endl
         << endl
-        << indent() << "fn(seqid, input_protocol, output_protocol);" << endl
+        << indent() << "fn(service, seqid, input_protocol, output_protocol);" << endl
         << endl;
     indent_down();
     out << indent() << "}" << endl;
@@ -1449,9 +1462,7 @@ void t_vala_generator::generate_function_helpers(ostream& out, t_function* tfunc
 
 void t_vala_generator::generate_process_function(ostream& out, t_service* tservice, t_function* tfunction)
 {
-    (void)tservice;
-    out << indent() << "private static void process_" << convert_to_snake_case(tfunction->get_name())
-        << "(int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error" << endl
+    out << indent() << "private static void process_" << convert_to_snake_case(tfunction->get_name()) << "(Object service, int32 seqid, Protocol input_protocol, Protocol output_protocol) throws Error" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -1497,7 +1508,8 @@ void t_vala_generator::generate_process_function(ostream& out, t_service* tservi
         out << "result.Success = ";
     }
 
-    out << "service." << convert_to_snake_case(tfunction->get_name()) << "(";
+    string interface_name = "I" + convert_to_pascal_case(tservice->get_name());
+    out << "((" << interface_name << ")service)." << convert_to_snake_case(tfunction->get_name()) << "(";
 
     bool first = true;
     prepare_member_name_mapping(arg_struct);

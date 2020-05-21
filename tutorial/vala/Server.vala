@@ -1,6 +1,6 @@
 using Thrift;
 
-public class CalculatorHandler : ICalculator, ISharedService, Object
+public class CalculatorHandler : SharedService, ISharedService, ICalculator
 {
     HashTable<int, SharedStruct> log;
 
