@@ -1,7 +1,16 @@
-# This is just an example to get you started. A typical library package
-# exports the main API in this file. Note that you cannot rename this file
-# but you can remove it if you wish.
+type
+  TApplicationExceptionType* = enum
+    UNKNOWN = 0,
+    UNKNOWN_METHOD = 1,
+    INVALID_MESSAGE_TYPE = 2,
+    WRONG_METHOD_NAME = 3,
+    BAD_SEQUENCE_ID = 4,
+    MISSING_RESULT = 5,
+    INTERNAL_ERROR = 6,
+    PROTOCOL_ERROR = 7,
+    INVALID_TRANSFORM = 8,
+    INVALID_PROTOCOL = 9,
+    UNSUPPORTED_CLIENT_TYPE = 10
 
-proc add*(x, y: int): int =
-  ## Adds two files together.
-  return x + y
+  TApplicationExceptionError* = object of CatchableError
+    exceptionType*: TApplicationExceptionType
