@@ -3,26 +3,26 @@ import "transport"
 
 type
   TType* = enum
-    T_STOP = 0,
-    T_VOID = 1,
-    T_BOOL = 2,
-    T_BYTE = 3,
-    T_DOUBLE = 4,
-    T_I16 = 6,
-    T_I32 = 8,
-    T_U64 = 9,
-    T_I64 = 10,
-    T_STRING = 11,
-    T_STRUCT = 12,
-    T_MAP = 13,
-    T_SET = 14,
-    T_LIST = 15
+    STOP = 0,
+    VOID = 1,
+    BOOL = 2,
+    BYTE = 3,
+    DOUBLE = 4,
+    I16 = 6,
+    I32 = 8,
+    U64 = 9,
+    I64 = 10,
+    STRING = 11,
+    STRUCT = 12,
+    MAP = 13,
+    SET = 14,
+    LIST = 15
 
   TMessageType* = enum
-    T_CALL = 1,
-    T_REPLY = 2,
-    T_EXCEPTION = 3,
-    T_ONEWAY = 4
+    CALL = 1,
+    REPLY = 2,
+    EXCEPTION = 3,
+    ONEWAY = 4
 
   TProtocol* = ref object of RootObj
     transport*: TTransport
@@ -150,7 +150,7 @@ method readDouble(protocol: TProtocol): float64 {.base.} =
 method readString(protocol: TProtocol): string {.base.} =
   raise newException(CatchableError, "Method without implementation override")
 
-method readBinary(protocol: TProtocol): openArray[int8] {.base.} =
+method readBinary(protocol: TProtocol): seq[int8] {.base.} =
   raise newException(CatchableError, "Method without implementation override")
 
 proc ntohll*(x: uint64): uint64 =
